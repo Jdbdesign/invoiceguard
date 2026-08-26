@@ -41,6 +41,7 @@ export async function POST(
       invoiceNumber: invoice.invoiceNumber,
       description: invoice.description,
       balance: invoice.balance,
+      currency: invoice.client.currency,
       dueDateIso,
       daysOverdue,
     });

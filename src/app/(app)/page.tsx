@@ -13,47 +13,52 @@ import {
 } from "@/lib/utils";
 import { ActivityIcon, activityIconVariant } from "@/components/ActivityIcon";
 
+type CurrencyTotals = Record<string, number>;
+
+function addTotal(totals: CurrencyTotals, currency: string, amount: number) {
+  totals[currency] = (totals[currency] ?? 0) + amount;
+}
+
 export default function DashboardPage() {
   const { clients, invoices, paymentPlans, activityLog } = useAppData();
 
   const outstandingInvoices = invoices.filter((inv) => inv.status !== "paid");
 
-  const totalOutstanding = outstandingInvoices.reduce(
-    (sum, inv) => sum + getInvoiceBalance(inv),
-    0
-  );
-
-  const bucketTotals = { "0-30": 0, "31-60": 0, "60+": 0 } as Record<
-    "0-30" | "31-60" | "60+",
-    number
-  >;
+  const totalOutstandingByCurrency: CurrencyTotals = {};
+  const bucketTotals = {
+    "0-30": {} as CurrencyTotals,
+    "31-60": {} as CurrencyTotals,
+    "60+": {} as CurrencyTotals,
+  };
   for (const inv of outstandingInvoices) {
+    const currency = getClientById(clients, inv.clientId)?.currency ?? "USD";
+    addTotal(totalOutstandingByCurrency, currency, getInvoiceBalance(inv));
     const bucket = getAgingBucket(inv);
-    if (bucket !== "not_due") bucketTotals[bucket] += getInvoiceBalance(inv);
+    if (bucket !== "not_due") addTotal(bucketTotals[bucket], currency, getInvoiceBalance(inv));
   }
 
   const summaryCards = [
     {
       label: "Total Outstanding",
-      value: totalOutstanding,
+      totals: totalOutstandingByCurrency,
       accent: "text-slate-900",
       icon: "wallet" as const,
     },
     {
       label: "Overdue 0-30 days",
-      value: bucketTotals["0-30"],
+      totals: bucketTotals["0-30"],
       accent: "text-amber-600",
       icon: "clock" as const,
     },
     {
       label: "Overdue 31-60 days",
-      value: bucketTotals["31-60"],
+      totals: bucketTotals["31-60"],
       accent: "text-orange-600",
       icon: "alert" as const,
     },
     {
       label: "Overdue 60+ days",
-      value: bucketTotals["60+"],
+      totals: bucketTotals["60+"],
       accent: "text-rose-600",
       icon: "flag" as const,
     },
@@ -95,9 +100,7 @@ export default function DashboardPage() {
               </p>
               <SummaryIcon icon={card.icon} />
             </div>
-            <p className={`mt-3 text-2xl font-semibold tabular-nums ${card.accent}`}>
-              {formatCurrency(card.value)}
-            </p>
+            <SummaryValue totals={card.totals} accent={card.accent} />
           </Card>
         ))}
       </div>
@@ -131,7 +134,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
-                    {formatCurrency(installment.amount)}
+                    {formatCurrency(installment.amount, client?.currency)}
                   </p>
                 </Link>
               );
@@ -196,6 +199,30 @@ function activityVerb(type: string): string {
     default:
       return "";
   }
+}
+
+function SummaryValue({ totals, accent }: { totals: CurrencyTotals; accent: string }) {
+  const entries = Object.entries(totals);
+
+  if (entries.length <= 1) {
+    const [currency, amount] = entries[0] ?? ["USD", 0];
+    return (
+      <p className={`mt-3 text-2xl font-semibold tabular-nums ${accent}`}>
+        {formatCurrency(amount, currency)}
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-0.5">
+      {entries.map(([currency, amount]) => (
+        <p key={currency} className={`text-base font-semibold tabular-nums ${accent}`}>
+          {formatCurrency(amount, currency)}{" "}
+          <span className="text-xs font-medium text-slate-400">{currency}</span>
+        </p>
+      ))}
+    </div>
+  );
 }
 
 function SummaryIcon({ icon }: { icon: "wallet" | "clock" | "alert" | "flag" }) {

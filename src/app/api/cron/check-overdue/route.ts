@@ -50,6 +50,7 @@ export async function POST() {
         invoiceNumber: invoice.invoiceNumber,
         description: invoice.description,
         balance: invoice.balance,
+        currency: invoice.client.currency,
         dueDateIso,
         daysOverdue,
       });
@@ -96,6 +97,7 @@ export async function POST() {
         invoiceNumber: invoice.invoiceNumber,
         description: `Payment plan installment for ${invoice.description}`,
         balance: installment.amount,
+        currency: invoice.client.currency,
         dueDateIso,
         daysOverdue: 0,
       });

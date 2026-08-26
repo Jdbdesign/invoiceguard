@@ -9,6 +9,7 @@ export interface Client {
   name: string;
   email: string;
   phone: string;
+  currency: string;
 }
 
 export interface Invoice {

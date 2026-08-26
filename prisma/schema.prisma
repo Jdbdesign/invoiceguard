@@ -11,6 +11,7 @@ model Client {
   name      String
   email     String
   phone     String
+  currency  String   @default("USD")
   createdAt DateTime @default(now())
 
   invoices     Invoice[]

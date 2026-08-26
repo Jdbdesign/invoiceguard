@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapActivity, mapInstallment } from "@/lib/mappers";
 import { fromIsoDate } from "@/lib/dateSerialization";
-import { todayIso } from "@/lib/utils";
+import { formatCurrency, todayIso } from "@/lib/utils";
 
 export async function PATCH(
   _request: Request,
@@ -14,7 +14,7 @@ export async function PATCH(
     where: { id },
     include: {
       paymentPlan: {
-        include: { installments: true, invoice: true },
+        include: { installments: true, invoice: { include: { client: true } } },
       },
     },
   });
@@ -39,10 +39,10 @@ export async function PATCH(
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     const position =
       orderedInstallments.findIndex((i) => i.id === installment.id) + 1;
-    const amountLabel = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(installment.amount);
+    const amountLabel = formatCurrency(
+      installment.amount,
+      installment.paymentPlan.invoice.client.currency
+    );
 
     const created = await prisma.activityLog.create({
       data: {

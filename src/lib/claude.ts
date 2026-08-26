@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ReminderStage } from "./types";
+import { formatCurrency } from "./utils";
 
 let cachedClient: Anthropic | null = null;
 
@@ -22,6 +23,7 @@ export interface DraftReminderInput {
   invoiceNumber: string;
   description: string;
   balance: number;
+  currency: string;
   dueDateIso: string;
   daysOverdue: number;
 }
@@ -34,10 +36,7 @@ export interface DraftedReminder {
 export async function draftReminderEmail(
   input: DraftReminderInput
 ): Promise<DraftedReminder> {
-  const amount = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(input.balance);
+  const amount = formatCurrency(input.balance, input.currency);
 
   const prompt = `Draft a ${input.stage} payment reminder email from InvoiceGuard, an accounts-receivable collections tool, to a client on behalf of the business they owe money to.
 
@@ -46,9 +45,11 @@ Tone: ${STAGE_TONE[input.stage]}
 Details:
 - Client: ${input.clientName}
 - Invoice: ${input.invoiceNumber} — ${input.description}
-- Amount owed: ${amount}
+- Amount owed: ${amount} (currency: ${input.currency})
 - Original due date: ${input.dueDateIso}
 - Days past due: ${Math.max(0, input.daysOverdue)}
+
+Important: the client's currency is ${input.currency}. Write every amount in the email exactly as formatted above (e.g. "${amount}") — use that currency's correct symbol/format, never a "$" sign unless the currency is actually USD.
 
 Respond with exactly this format and nothing else — no preamble, no markdown:
 SUBJECT: <subject line>

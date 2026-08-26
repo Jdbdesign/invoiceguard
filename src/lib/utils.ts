@@ -8,10 +8,27 @@ export function todayIso(): string {
   return `${y}-${m}-${d}`;
 }
 
-export function formatCurrency(amount: number): string {
+export const DEFAULT_CURRENCY = "USD";
+
+export const CURRENCIES: { code: string; label: string }[] = [
+  { code: "USD", label: "US Dollar" },
+  { code: "NGN", label: "Nigerian Naira" },
+  { code: "GBP", label: "British Pound" },
+  { code: "EUR", label: "Euro" },
+  { code: "CAD", label: "Canadian Dollar" },
+  { code: "ZAR", label: "South African Rand" },
+  { code: "KES", label: "Kenyan Shilling" },
+  { code: "GHS", label: "Ghanaian Cedi" },
+  { code: "INR", label: "Indian Rupee" },
+  { code: "AUD", label: "Australian Dollar" },
+  { code: "JPY", label: "Japanese Yen" },
+];
+
+export function formatCurrency(amount: number, currency: string = DEFAULT_CURRENCY): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
+    currencyDisplay: "narrowSymbol",
     minimumFractionDigits: 2,
   }).format(amount);
 }

@@ -132,7 +132,7 @@ export default function InvoicesPage() {
                     </Link>
                   </td>
                   <td className="px-5 py-4 font-medium tabular-nums text-slate-900">
-                    {formatCurrency(getInvoiceBalance(invoice))}
+                    {formatCurrency(getInvoiceBalance(invoice), client?.currency)}
                   </td>
                   <td className="px-5 py-4 text-slate-600">{formatDate(invoice.dueDate)}</td>
                   <td className="px-5 py-4 tabular-nums text-slate-600">

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapClient } from "@/lib/mappers";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/utils";
+
+const VALID_CURRENCIES = new Set(CURRENCIES.map((c) => c.code));
 
 export async function GET() {
   const clients = await prisma.client.findMany({ orderBy: { createdAt: "desc" } });
@@ -12,6 +15,8 @@ export async function POST(request: Request) {
   const name = String(body.name ?? "").trim();
   const email = String(body.email ?? "").trim();
   const phone = String(body.phone ?? "").trim();
+  const currencyInput = String(body.currency ?? "").trim().toUpperCase();
+  const currency = VALID_CURRENCIES.has(currencyInput) ? currencyInput : DEFAULT_CURRENCY;
 
   if (!name || !email) {
     return NextResponse.json(
@@ -20,6 +25,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const client = await prisma.client.create({ data: { name, email, phone } });
+  const client = await prisma.client.create({ data: { name, email, phone, currency } });
   return NextResponse.json(mapClient(client), { status: 201 });
 }

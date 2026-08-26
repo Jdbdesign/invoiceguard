@@ -22,6 +22,7 @@ interface NewClientInput {
   name: string;
   email: string;
   phone: string;
+  currency: string;
 }
 
 interface NewInvoiceInput {

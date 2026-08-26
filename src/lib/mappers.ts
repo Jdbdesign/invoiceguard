@@ -11,7 +11,13 @@ import type {
   ReminderStage,
 } from "./types";
 
-type ClientRow = { id: string; name: string; email: string; phone: string };
+type ClientRow = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  currency: string;
+};
 type InvoiceRow = {
   id: string;
   clientId: string;
@@ -54,7 +60,13 @@ type SettingsRow = {
 };
 
 export function mapClient(c: ClientRow): Client {
-  return { id: c.id, name: c.name, email: c.email, phone: c.phone };
+  return {
+    id: c.id,
+    name: c.name,
+    email: c.email,
+    phone: c.phone,
+    currency: c.currency,
+  };
 }
 
 export function mapInvoice(inv: InvoiceRow): Invoice {

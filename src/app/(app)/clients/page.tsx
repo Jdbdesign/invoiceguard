@@ -75,7 +75,7 @@ export default function ClientsPage() {
                     <p className="text-xs text-slate-500">{client.email}</p>
                   </td>
                   <td className="px-5 py-4 font-medium tabular-nums text-slate-900">
-                    {formatCurrency(totalOwed)}
+                    {formatCurrency(totalOwed, client.currency)}
                   </td>
                   <td className="px-5 py-4 text-slate-600">
                     {oldestOverdue ? (

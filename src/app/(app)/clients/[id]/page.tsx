@@ -92,7 +92,7 @@ export default function ClientDetailPage() {
               Total owed
             </p>
             <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
-              {formatCurrency(totalOwed)}
+              {formatCurrency(totalOwed, client.currency)}
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function ClientDetailPage() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="text-sm font-semibold tabular-nums text-slate-900">
-                          {formatCurrency(balance)}
+                          {formatCurrency(balance, client.currency)}
                         </p>
                         <Badge variant={invBadge.variant}>{invBadge.label}</Badge>
                       </div>
@@ -167,8 +167,9 @@ export default function ClientDetailPage() {
               <Card key={plan.id}>
                 <CardHeader
                   title={`Payment plan ${plan.id}`}
-                  subtitle={`${formatCurrency(plan.totalAmount)} total · ${formatCurrency(
-                    remaining
+                  subtitle={`${formatCurrency(plan.totalAmount, client.currency)} total · ${formatCurrency(
+                    remaining,
+                    client.currency
                   )} remaining · started ${formatDate(plan.startDate)}`}
                 />
                 <div className="divide-y divide-slate-100">
@@ -200,7 +201,7 @@ export default function ClientDetailPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <p className="text-sm font-medium tabular-nums text-slate-900">
-                          {formatCurrency(inst.amount)}
+                          {formatCurrency(inst.amount, client.currency)}
                         </p>
                         <button
                           onClick={() => {

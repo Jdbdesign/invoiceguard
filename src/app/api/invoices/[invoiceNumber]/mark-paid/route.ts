@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapActivity, mapInvoice } from "@/lib/mappers";
+import { formatCurrency } from "@/lib/utils";
 
 export async function POST(
   _request: Request,
@@ -8,7 +9,10 @@ export async function POST(
 ) {
   const { invoiceNumber } = await params;
 
-  const invoice = await prisma.invoice.findUnique({ where: { invoiceNumber } });
+  const invoice = await prisma.invoice.findUnique({
+    where: { invoiceNumber },
+    include: { client: true },
+  });
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
   }
@@ -24,10 +28,7 @@ export async function POST(
     data: { status: "paid", balance: 0 },
   });
 
-  const amountLabel = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(invoice.amount);
+  const amountLabel = formatCurrency(invoice.amount, invoice.client.currency);
 
   const activity = await prisma.activityLog.create({
     data: {

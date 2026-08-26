@@ -19,6 +19,8 @@ export function InvoiceFormModal({
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
 
+  const selectedClient = clients.find((c) => c.id === clientId);
+
   function reset() {
     setClientId("");
     setAmount("");
@@ -82,7 +84,7 @@ export function InvoiceFormModal({
           />
         </Field>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Amount (USD)">
+          <Field label={`Amount${selectedClient ? ` (${selectedClient.currency})` : ""}`}>
             <input
               required
               type="number"

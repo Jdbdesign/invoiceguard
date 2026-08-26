@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/utils";
 
 export function ClientFormModal({
   open,
@@ -17,18 +18,25 @@ export function ClientFormModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
 
   function reset() {
     setName("");
     setEmail("");
     setPhone("");
+    setCurrency(DEFAULT_CURRENCY);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
     try {
-      await addClient({ name: name.trim(), email: email.trim(), phone: phone.trim() });
+      await addClient({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        currency,
+      });
       showToast(`${name.trim()} added to clients`);
       reset();
       onClose();
@@ -73,6 +81,19 @@ export function ClientFormModal({
             placeholder="(555) 555-0100"
             className="input"
           />
+        </Field>
+        <Field label="Currency">
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="input"
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} — {c.label}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <div className="flex justify-end gap-3 pt-2">
