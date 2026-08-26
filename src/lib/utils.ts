@@ -96,6 +96,10 @@ export function getClientPaymentPlans(
   return plans.filter((p) => p.clientId === clientId);
 }
 
+export function invoiceHasPaymentPlan(invoiceId: string, plans: PaymentPlan[]): boolean {
+  return plans.some((p) => p.invoiceId === invoiceId);
+}
+
 export function getClientTotalOwed(clientId: string, invoices: Invoice[]): number {
   return getClientInvoices(clientId, invoices)
     .filter((inv) => inv.status !== "paid")
