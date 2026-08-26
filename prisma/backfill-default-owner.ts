@@ -36,15 +36,15 @@ async function main() {
   console.log(`Backfilled ownerId on ${clientResult.count} Client row(s)`);
 
   const ownedSettings = await prisma.settings.findUnique({ where: { ownerId: user.id } });
-  const globalSettings = await prisma.settings.findFirst({ where: { ownerId: null } });
+  const globalSettings = await prisma.settings.findMany({ where: { ownerId: null } });
 
   if (!ownedSettings) {
     await prisma.settings.create({
       data: {
         ownerId: user.id,
-        friendlyReminderDays: globalSettings?.friendlyReminderDays ?? 3,
-        firmReminderDays: globalSettings?.firmReminderDays ?? 15,
-        finalNoticeDays: globalSettings?.finalNoticeDays ?? 45,
+        friendlyReminderDays: globalSettings[0]?.friendlyReminderDays ?? 3,
+        firmReminderDays: globalSettings[0]?.firmReminderDays ?? 15,
+        finalNoticeDays: globalSettings[0]?.finalNoticeDays ?? 45,
       },
     });
     console.log("Created Settings row for default user");
@@ -52,9 +52,15 @@ async function main() {
     console.log("Default user already has a Settings row — leaving it as-is");
   }
 
-  if (globalSettings) {
-    await prisma.settings.delete({ where: { id: globalSettings.id } });
-    console.log(`Removed old global Settings row (id ${globalSettings.id})`);
+  if (globalSettings.length > 0) {
+    if (globalSettings.length > 1) {
+      console.warn(
+        `WARNING: Found ${globalSettings.length} orphaned global Settings rows. ` +
+        `Migrating values from the first row and deleting all of them.`
+      );
+    }
+    await prisma.settings.deleteMany({ where: { ownerId: null } });
+    console.log(`Removed ${globalSettings.length} old global Settings row(s)`);
   }
 }
 
