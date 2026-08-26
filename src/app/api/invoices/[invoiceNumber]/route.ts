@@ -28,7 +28,10 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid invoice input" }, { status: 400 });
   }
 
-  const existing = await prisma.invoice.findUnique({ where: { invoiceNumber } });
+  const existing = await prisma.invoice.findUnique({
+    where: { invoiceNumber },
+    include: { paymentPlan: true },
+  });
   if (!existing) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
   }
@@ -39,17 +42,28 @@ export async function PATCH(
   }
 
   const amountPaid = Math.max(0, existing.amount - existing.balance);
-  const balance = status === "paid" ? 0 : Math.max(0, amount - amountPaid);
+  const hasPaymentPlan = Boolean(existing.paymentPlan);
+  const amountLocked = hasPaymentPlan || amountPaid > 0;
+
+  // Amount/status are locked once a payment plan exists or any payment has
+  // been recorded — ignore client-submitted changes to those fields rather
+  // than trusting the request body, so a direct API call can't bypass the
+  // same rule the Edit Invoice modal enforces.
+  const finalAmount = amountLocked ? existing.amount : amount;
+  const finalClientId = hasPaymentPlan ? existing.clientId : clientId;
+  const finalStatus = hasPaymentPlan ? existing.status : status;
+  const balance =
+    finalStatus === "paid" ? 0 : Math.max(0, finalAmount - amountPaid);
 
   const invoice = await prisma.invoice.update({
     where: { invoiceNumber },
     data: {
-      clientId,
-      amount,
+      clientId: finalClientId,
+      amount: finalAmount,
       balance,
       dueDate: fromIsoDate(dueDate),
       description,
-      status,
+      status: finalStatus,
     },
   });
 

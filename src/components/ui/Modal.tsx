@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export function Modal({
   open,
@@ -22,9 +23,14 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  // Rendered into document.body via a portal so the modal (and any dropdown
+  // popovers inside it) can never be clipped by an ancestor's overflow:hidden
+  // or trapped under a lower z-index stacking context. Modals only ever open
+  // in response to client-side interaction, so `document` is always available
+  // by the time `open` is true — no mount-detection effect needed.
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
@@ -45,6 +51,7 @@ export function Modal({
         </div>
         <div className="px-6 py-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

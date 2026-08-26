@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { PageLoading } from "@/components/ui/Spinner";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { ClientFormModal } from "@/components/clients/ClientFormModal";
@@ -20,7 +21,7 @@ import {
 } from "@/lib/utils";
 
 export default function ClientsPage() {
-  const { clients, invoices, paymentPlans, deleteClient } = useAppData();
+  const { clients, invoices, paymentPlans, deleteClient, loading } = useAppData();
   const { showToast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -34,6 +35,10 @@ export default function ClientsPage() {
       return { client, totalOwed, oldestOverdue, status };
     })
     .sort((a, b) => b.totalOwed - a.totalOwed);
+
+  if (loading) {
+    return <PageLoading label="Loading clients…" />;
+  }
 
   return (
     <div className="space-y-6">

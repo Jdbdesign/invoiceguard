@@ -11,10 +11,26 @@ export async function POST(
 
   const invoice = await prisma.invoice.findUnique({
     where: { invoiceNumber },
-    include: { client: true },
+    include: { client: true, paymentPlan: true },
   });
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
+  }
+  // An invoice with an associated PaymentPlan must only ever be marked paid
+  // through settle-payment-plan, which also settles the plan's installments
+  // in the same transaction — never through this generic endpoint, which
+  // would otherwise flip the invoice to "paid" while installments stay
+  // unpaid (checked before the already-paid short-circuit below so this
+  // also catches — and refuses to silently no-op on — an invoice that's
+  // already in that inconsistent state).
+  if (invoice.paymentPlan) {
+    return NextResponse.json(
+      {
+        error:
+          "invoice has an active payment plan — use settle-payment-plan to record payment instead",
+      },
+      { status: 400 }
+    );
   }
   if (invoice.status === "paid") {
     return NextResponse.json(

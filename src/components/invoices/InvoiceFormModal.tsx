@@ -21,7 +21,7 @@ export function InvoiceFormModal({
   onClose: () => void;
   invoice?: Invoice;
 }) {
-  const { clients, addInvoice, updateInvoice } = useAppData();
+  const { clients, paymentPlans, addInvoice, updateInvoice } = useAppData();
   const { showToast } = useToast();
   const isEdit = Boolean(invoice);
   const [clientId, setClientId] = useState("");
@@ -29,6 +29,13 @@ export function InvoiceFormModal({
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<InvoiceStatus>("unpaid");
+
+  const hasPaymentPlan =
+    isEdit && invoice ? paymentPlans.some((p) => p.invoiceId === invoice.id) : false;
+  const amountLocked = isEdit && (hasPaymentPlan || (invoice?.amountPaid ?? 0) > 0);
+  const amountLockedReason = hasPaymentPlan
+    ? "This invoice has an active payment plan — manage payments through the installment list instead."
+    : "Amount can't be changed after a payment has been recorded.";
 
   useEffect(() => {
     if (!open) return;
@@ -87,9 +94,10 @@ export function InvoiceFormModal({
         <Field label="Client">
           <select
             required
+            disabled={hasPaymentPlan}
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="input"
+            className={`input ${hasPaymentPlan ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
           >
             <option value="" disabled>
               Select a client
@@ -117,10 +125,11 @@ export function InvoiceFormModal({
               type="number"
               min="0"
               step="0.01"
+              disabled={amountLocked}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="1500.00"
-              className="input"
+              className={`input ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
             />
           </Field>
           <Field label="Due date">
@@ -133,7 +142,10 @@ export function InvoiceFormModal({
             />
           </Field>
         </div>
-        {isEdit && (
+        {amountLocked && (
+          <p className="-mt-2 text-xs text-slate-500">{amountLockedReason}</p>
+        )}
+        {isEdit && !hasPaymentPlan && (
           <Field label="Status">
             <select
               value={status}
@@ -146,6 +158,15 @@ export function InvoiceFormModal({
                 </option>
               ))}
             </select>
+          </Field>
+        )}
+        {isEdit && hasPaymentPlan && (
+          <Field label="Status">
+            <input
+              value="Payment plan"
+              disabled
+              className="input cursor-not-allowed bg-slate-50 text-slate-500"
+            />
           </Field>
         )}
 

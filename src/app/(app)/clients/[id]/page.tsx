@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { PageLoading } from "@/components/ui/Spinner";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
+import type { Installment, Invoice } from "@/lib/types";
 import {
   formatCurrency,
   formatDate,
@@ -25,13 +29,30 @@ export default function ClientDetailPage() {
     invoices,
     paymentPlans,
     activityLog,
+    loading,
     markInvoicePaid,
     sendReminderNow,
     toggleInstallmentPaid,
+    settlePaymentPlan,
   } = useAppData();
   const { showToast } = useToast();
+  const [confirmingInvoice, setConfirmingInvoice] = useState<Invoice | null>(null);
+  const [confirmingInstallment, setConfirmingInstallment] = useState<{
+    planId: string;
+    installment: Installment;
+  } | null>(null);
+  const [confirmingSettlePlan, setConfirmingSettlePlan] = useState<{
+    invoiceId: string;
+    remaining: number;
+    count: number;
+    currency: string;
+  } | null>(null);
 
   const client = clients.find((c) => c.id === params.id);
+
+  if (loading) {
+    return <PageLoading label="Loading client…" />;
+  }
 
   if (!client) {
     return (
@@ -106,6 +127,14 @@ export default function ClientDetailPage() {
               {clientInvoices.map((invoice) => {
                 const invBadge = invoiceStatusLabel(invoice);
                 const balance = getInvoiceBalance(invoice);
+                const invoicePlan = clientPlans.find((p) => p.invoiceId === invoice.id);
+                const invoicePlanUnpaid = invoicePlan
+                  ? invoicePlan.installments.filter((i) => !i.paid)
+                  : [];
+                const invoicePlanRemaining = invoicePlanUnpaid.reduce(
+                  (s, i) => s + i.amount,
+                  0
+                );
                 return (
                   <div key={invoice.id} className="flex items-center justify-between px-5 py-3.5">
                     <div>
@@ -126,30 +155,48 @@ export default function ClientDetailPage() {
                         </p>
                         <Badge variant={invBadge.variant}>{invBadge.label}</Badge>
                       </div>
-                      {invoice.status !== "paid" && (
+                      {(invoicePlanRemaining > 0 || invoice.status !== "paid") && (
                         <div className="flex flex-col gap-1.5">
-                          <button
-                            onClick={async () => {
-                              try {
-                                await markInvoicePaid(invoice.id);
-                                showToast(`${invoice.id} marked as paid`);
-                              } catch {
-                                showToast(`Failed to mark ${invoice.id} as paid`);
+                          {invoicePlanRemaining > 0 ? (
+                            // Shown whenever the payment plan still has a
+                            // remaining balance, even if the invoice itself
+                            // already (incorrectly) shows "paid" — that
+                            // mismatch is exactly what this action reconciles.
+                            <button
+                              onClick={() =>
+                                setConfirmingSettlePlan({
+                                  invoiceId: invoice.id,
+                                  remaining: invoicePlanRemaining,
+                                  count: invoicePlanUnpaid.length,
+                                  currency: client.currency,
+                                })
                               }
-                            }}
-                            className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
-                          >
-                            Mark paid
-                          </button>
-                          <button
-                            onClick={() => {
-                              sendReminderNow(invoice.id);
-                              showToast(`Drafting reminder for ${invoice.id}…`);
-                            }}
-                            className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                          >
-                            Send reminder
-                          </button>
+                              className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                            >
+                              Settle remaining balance
+                            </button>
+                          ) : (
+                            invoice.status !== "paid" &&
+                            !invoicePlan && (
+                              <button
+                                onClick={() => setConfirmingInvoice(invoice)}
+                                className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                              >
+                                Mark paid
+                              </button>
+                            )
+                          )}
+                          {invoice.status !== "paid" && (
+                            <button
+                              onClick={() => {
+                                sendReminderNow(invoice.id);
+                                showToast(`Drafting reminder for ${invoice.id}…`);
+                              }}
+                              className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                            >
+                              Send reminder
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -160,9 +207,8 @@ export default function ClientDetailPage() {
           </Card>
 
           {clientPlans.map((plan) => {
-            const remaining = plan.installments
-              .filter((i) => !i.paid)
-              .reduce((s, i) => s + i.amount, 0);
+            const planUnpaid = plan.installments.filter((i) => !i.paid);
+            const remaining = planUnpaid.reduce((s, i) => s + i.amount, 0);
             return (
               <Card key={plan.id}>
                 <CardHeader
@@ -171,6 +217,23 @@ export default function ClientDetailPage() {
                     remaining,
                     client.currency
                   )} remaining · started ${formatDate(plan.startDate)}`}
+                  action={
+                    remaining > 0 ? (
+                      <button
+                        onClick={() =>
+                          setConfirmingSettlePlan({
+                            invoiceId: plan.invoiceId,
+                            remaining,
+                            count: planUnpaid.length,
+                            currency: client.currency,
+                          })
+                        }
+                        className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                      >
+                        Settle remaining balance
+                      </button>
+                    ) : undefined
+                  }
                 />
                 <div className="divide-y divide-slate-100">
                   {plan.installments.map((inst, idx) => (
@@ -205,6 +268,10 @@ export default function ClientDetailPage() {
                         </p>
                         <button
                           onClick={() => {
+                            if (!inst.paid) {
+                              setConfirmingInstallment({ planId: plan.id, installment: inst });
+                              return;
+                            }
                             toggleInstallmentPaid(plan.id, inst.id).catch(() =>
                               showToast("Failed to update installment")
                             );
@@ -269,6 +336,80 @@ export default function ClientDetailPage() {
           </Card>
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmingInvoice !== null}
+        onClose={() => setConfirmingInvoice(null)}
+        title="Mark invoice as paid?"
+        message={`Mark ${confirmingInvoice?.id} as paid? This can be undone.`}
+        confirmLabel="Mark paid"
+        onConfirm={async () => {
+          if (!confirmingInvoice) return;
+          try {
+            await markInvoicePaid(confirmingInvoice.id);
+            showToast(`${confirmingInvoice.id} marked as paid`);
+          } catch {
+            showToast(`Failed to mark ${confirmingInvoice.id} as paid`);
+          } finally {
+            setConfirmingInvoice(null);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingInstallment !== null}
+        onClose={() => setConfirmingInstallment(null)}
+        title="Mark installment as paid?"
+        message={
+          confirmingInstallment
+            ? `Mark the installment due ${formatDate(
+                confirmingInstallment.installment.dueDate
+              )} as paid? This can be undone.`
+            : ""
+        }
+        confirmLabel="Mark paid"
+        onConfirm={async () => {
+          if (!confirmingInstallment) return;
+          try {
+            await toggleInstallmentPaid(
+              confirmingInstallment.planId,
+              confirmingInstallment.installment.id
+            );
+          } catch {
+            showToast("Failed to update installment");
+          } finally {
+            setConfirmingInstallment(null);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingSettlePlan !== null}
+        onClose={() => setConfirmingSettlePlan(null)}
+        title="Settle remaining balance?"
+        message={
+          confirmingSettlePlan
+            ? `Mark the remaining ${formatCurrency(
+                confirmingSettlePlan.remaining,
+                confirmingSettlePlan.currency
+              )} (${confirmingSettlePlan.count} installment${
+                confirmingSettlePlan.count === 1 ? "" : "s"
+              }) as paid in full? This records that the client paid off the rest of the payment plan in one payment.`
+            : ""
+        }
+        confirmLabel="Settle balance"
+        onConfirm={async () => {
+          if (!confirmingSettlePlan) return;
+          try {
+            await settlePaymentPlan(confirmingSettlePlan.invoiceId);
+            showToast("Remaining balance settled");
+          } catch {
+            showToast("Failed to settle remaining balance");
+          } finally {
+            setConfirmingSettlePlan(null);
+          }
+        }}
+      />
     </div>
   );
 }

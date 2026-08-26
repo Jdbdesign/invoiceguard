@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { PageLoading } from "@/components/ui/Spinner";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { InvoiceFormModal } from "@/components/invoices/InvoiceFormModal";
@@ -31,7 +32,7 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 ];
 
 export default function InvoicesPage() {
-  const { clients, invoices, sendReminderNow, deleteInvoice } = useAppData();
+  const { clients, invoices, sendReminderNow, deleteInvoice, loading } = useAppData();
   const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
@@ -52,6 +53,10 @@ export default function InvoicesPage() {
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
   }, [invoices, statusFilter, sortKey]);
+
+  if (loading) {
+    return <PageLoading label="Loading invoices…" />;
+  }
 
   return (
     <div className="space-y-6">

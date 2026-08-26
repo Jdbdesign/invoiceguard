@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { PageLoading } from "@/components/ui/Spinner";
 import { useAppData } from "@/context/AppDataContext";
 import {
   formatCurrency,
@@ -20,7 +21,11 @@ function addTotal(totals: CurrencyTotals, currency: string, amount: number) {
 }
 
 export default function DashboardPage() {
-  const { clients, invoices, paymentPlans, activityLog } = useAppData();
+  const { clients, invoices, paymentPlans, activityLog, loading } = useAppData();
+
+  if (loading) {
+    return <PageLoading label="Loading dashboard…" />;
+  }
 
   const outstandingInvoices = invoices.filter((inv) => inv.status !== "paid");
 
