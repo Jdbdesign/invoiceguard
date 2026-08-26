@@ -1773,7 +1773,7 @@ Note the activity message changes from the hardcoded `"settled by Jacob Solayink
 - [ ] **Step 6: Verify**
 
 Run: `npx tsc --noEmit`
-Expected: no errors from these five files (the `getOrCreateSettings` signature-change error resolves once Task 11 lands — until then, expect exactly one remaining error there, from `draft-reminder/route.ts` calling the not-yet-updated function signature. If a broader signature update is needed sooner, do Task 11's `src/lib/settings.ts` edit first as part of this task instead of waiting.)
+Expected: exactly one error, in `draft-reminder/route.ts`, on the `getOrCreateSettings(session.user.id)` call — `src/lib/settings.ts` still has the old zero-arg signature at this point in the plan (Task 11 changes it) since it isn't one of this task's Files. This one error is expected and resolves in Task 11; do not treat it as a Task 9 defect, and do not edit `src/lib/settings.ts` in this task.
 
 - [ ] **Step 7: Commit**
 
