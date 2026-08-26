@@ -43,7 +43,6 @@ export default function SignupPage() {
       if (result?.error) {
         setError("Account created — sign in from the login page.");
         setSubmitting(false);
-        router.push("/login");
         return;
       }
       router.push("/");

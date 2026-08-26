@@ -26,13 +26,17 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({ data: { email, passwordHash } });
-  await prisma.settings.create({
+  const user = await prisma.user.create({
     data: {
-      ownerId: user.id,
-      friendlyReminderDays: 3,
-      firmReminderDays: 15,
-      finalNoticeDays: 45,
+      email,
+      passwordHash,
+      settings: {
+        create: {
+          friendlyReminderDays: 3,
+          firmReminderDays: 15,
+          finalNoticeDays: 45,
+        },
+      },
     },
   });
 
