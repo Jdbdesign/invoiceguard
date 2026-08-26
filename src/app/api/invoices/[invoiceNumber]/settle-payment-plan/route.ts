@@ -24,6 +24,9 @@ export async function POST(
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
   }
+  // Deriving the plan from the invoice's own relation (rather than
+  // trusting a client-supplied plan id) means it can never belong to a
+  // different invoice.
   if (!invoice.paymentPlan) {
     return NextResponse.json(
       { error: "invoice has no associated payment plan" },

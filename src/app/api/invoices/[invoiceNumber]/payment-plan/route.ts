@@ -19,6 +19,10 @@ interface PaymentPlanRequestBody {
   frequency?: unknown;
 }
 
+// `new Date("YYYY-MM-DDT...")` silently rolls over out-of-range days/months
+// (e.g. "2026-02-31" becomes 2026-03-03) instead of producing an Invalid
+// Date, so a NaN check alone can't detect a calendar-invalid date. Round-trip
+// the parsed components against the original string instead.
 function isValidCalendarDate(iso: string): boolean {
   const parsed = fromIsoDate(iso);
   if (Number.isNaN(parsed.getTime())) return false;

@@ -20,6 +20,13 @@ export async function POST(
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
   }
+  // An invoice with an associated PaymentPlan must only ever be marked paid
+  // through settle-payment-plan, which also settles the plan's installments
+  // in the same transaction — never through this generic endpoint, which
+  // would otherwise flip the invoice to "paid" while installments stay
+  // unpaid (checked before the already-paid short-circuit below so this
+  // also catches — and refuses to silently no-op on — an invoice that's
+  // already in that inconsistent state).
   if (invoice.paymentPlan) {
     return NextResponse.json(
       {
