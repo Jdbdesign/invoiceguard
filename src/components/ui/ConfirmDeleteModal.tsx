@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 
 export function ConfirmDeleteModal({
@@ -22,12 +22,16 @@ export function ConfirmDeleteModal({
   const [deleting, setDeleting] = useState(false);
   const matches = typed.length > 0 && typed === confirmText;
 
-  useEffect(() => {
+  // Reset the confirmation field whenever the modal opens, without an
+  // effect — see ClientFormModal for why this runs during render instead.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setTyped("");
       setDeleting(false);
     }
-  }, [open]);
+  }
 
   async function handleConfirm() {
     if (!matches || deleting) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
@@ -38,16 +38,23 @@ export function InvoiceFormModal({
     ? "This invoice has an active payment plan — manage payments through the installment list instead."
     : "Amount can't be changed after a payment has been recorded.";
 
-  useEffect(() => {
-    if (!open) return;
-    setClientId(invoice?.clientId ?? "");
-    setAmount(invoice ? String(invoice.amount) : "");
-    setDueDate(invoice?.dueDate ?? "");
-    setDescription(invoice?.description ?? "");
-    setStatus(
-      invoice?.status && invoice.status !== "payment_plan" ? invoice.status : "unpaid"
-    );
-  }, [open, invoice]);
+  // Reset the form fields whenever the modal opens for a (possibly new)
+  // invoice, without an effect — see ClientFormModal for why this runs
+  // during render instead.
+  const openKey = open ? (invoice?.id ?? "__new__") : null;
+  const [lastOpenKey, setLastOpenKey] = useState<string | null>(null);
+  if (openKey !== lastOpenKey) {
+    setLastOpenKey(openKey);
+    if (openKey !== null) {
+      setClientId(invoice?.clientId ?? "");
+      setAmount(invoice ? String(invoice.amount) : "");
+      setDueDate(invoice?.dueDate ?? "");
+      setDescription(invoice?.description ?? "");
+      setStatus(
+        invoice?.status && invoice.status !== "payment_plan" ? invoice.status : "unpaid"
+      );
+    }
+  }
 
   const selectedClient = clients.find((c) => c.id === clientId);
 

@@ -25,12 +25,25 @@ export function ReminderModal({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Reset to the loading state whenever the modal opens for a (possibly
+  // new) invoice, without an effect — see ClientFormModal for why this
+  // runs during render instead. The effect below is left to do only what
+  // effects are for: kicking off the actual external draft request and
+  // applying its result in a callback.
+  const draftKey = open ? invoiceId : null;
+  const [lastDraftKey, setLastDraftKey] = useState<string | null>(null);
+  if (draftKey !== lastDraftKey) {
+    setLastDraftKey(draftKey);
+    if (draftKey !== null) {
+      setStatus("loading");
+      setDraft(null);
+      setErrorMessage(null);
+    }
+  }
+
   useEffect(() => {
     if (!open || !invoiceId) return;
     let cancelled = false;
-    setStatus("loading");
-    setDraft(null);
-    setErrorMessage(null);
 
     draftReminder(invoiceId)
       .then((result) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
@@ -24,13 +24,21 @@ export function ClientFormModal({
   const [phone, setPhone] = useState("");
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
 
-  useEffect(() => {
-    if (!open) return;
-    setName(client?.name ?? "");
-    setEmail(client?.email ?? "");
-    setPhone(client?.phone ?? "");
-    setCurrency(client?.currency ?? DEFAULT_CURRENCY);
-  }, [open, client]);
+  // Reset the form fields whenever the modal opens for a (possibly new)
+  // client, without an effect: comparing against the last-seen open key
+  // during render lets React apply the reset before painting, instead of
+  // committing the stale values for one frame first.
+  const openKey = open ? (client?.id ?? "__new__") : null;
+  const [lastOpenKey, setLastOpenKey] = useState<string | null>(null);
+  if (openKey !== lastOpenKey) {
+    setLastOpenKey(openKey);
+    if (openKey !== null) {
+      setName(client?.name ?? "");
+      setEmail(client?.email ?? "");
+      setPhone(client?.phone ?? "");
+      setCurrency(client?.currency ?? DEFAULT_CURRENCY);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

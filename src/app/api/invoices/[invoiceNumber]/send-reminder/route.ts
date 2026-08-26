@@ -5,24 +5,32 @@ import type { ReminderStage } from "@/lib/types";
 
 const VALID_STAGES: ReminderStage[] = ["friendly", "firm", "final"];
 
+function isReminderStage(value: unknown): value is ReminderStage {
+  return typeof value === "string" && (VALID_STAGES as string[]).includes(value);
+}
+
+interface SendReminderRequestBody {
+  subject?: unknown;
+  body?: unknown;
+  stage?: unknown;
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
   const { invoiceNumber } = await params;
 
-  let body: any;
+  let body: SendReminderRequestBody;
   try {
-    body = await request.json();
+    body = (await request.json()) as SendReminderRequestBody;
   } catch {
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
 
   const subject = typeof body.subject === "string" ? body.subject.trim() : "";
   const emailBody = typeof body.body === "string" ? body.body.trim() : "";
-  const stage: ReminderStage | null = VALID_STAGES.includes(body.stage)
-    ? body.stage
-    : null;
+  const stage: ReminderStage | null = isReminderStage(body.stage) ? body.stage : null;
 
   if (!subject || !emailBody) {
     return NextResponse.json(

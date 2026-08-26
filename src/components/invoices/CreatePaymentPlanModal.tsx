@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
@@ -38,12 +38,19 @@ export function CreatePaymentPlanModal({
   const [frequency, setFrequency] = useState<PaymentPlanFrequency>("monthly");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setInstallmentCount(DEFAULT_INSTALLMENTS);
-    setFirstDueDate(todayIso());
-    setFrequency("monthly");
-  }, [open, invoice]);
+  // Reset the form fields whenever the modal opens for a (possibly new)
+  // invoice, without an effect — see ClientFormModal for why this runs
+  // during render instead.
+  const openKey = open ? (invoice?.id ?? "__none__") : null;
+  const [lastOpenKey, setLastOpenKey] = useState<string | null>(null);
+  if (openKey !== lastOpenKey) {
+    setLastOpenKey(openKey);
+    if (openKey !== null) {
+      setInstallmentCount(DEFAULT_INSTALLMENTS);
+      setFirstDueDate(todayIso());
+      setFrequency("monthly");
+    }
+  }
 
   const client = invoice ? getClientById(clients, invoice.clientId) : undefined;
   const remaining = invoice ? getInvoiceBalance(invoice) : 0;

@@ -12,6 +12,12 @@ import {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+interface PaymentPlanRequestBody {
+  installmentCount?: unknown;
+  firstDueDate?: unknown;
+  frequency?: unknown;
+}
+
 // `new Date("YYYY-MM-DDT...")` silently rolls over out-of-range days/months
 // (e.g. "2026-02-31" becomes 2026-03-03) instead of producing an Invalid
 // Date, so a NaN check alone can't detect a calendar-invalid date. Round-trip
@@ -32,9 +38,9 @@ export async function POST(
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
   const { invoiceNumber } = await params;
-  let body: any;
+  let body: PaymentPlanRequestBody;
   try {
-    body = await request.json();
+    body = (await request.json()) as PaymentPlanRequestBody;
   } catch {
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
