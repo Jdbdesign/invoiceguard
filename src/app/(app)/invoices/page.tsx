@@ -160,15 +160,6 @@ export default function InvoicesPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {invoice.status !== "paid" &&
-                        !invoiceHasPaymentPlan(invoice.id, paymentPlans) && (
-                          <button
-                            onClick={() => setCreatingPlanFor(invoice)}
-                            className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-                          >
-                            Create payment plan
-                          </button>
-                        )}
                       {invoice.status !== "paid" && (
                         <button
                           onClick={() => {
@@ -183,6 +174,12 @@ export default function InvoicesPage() {
                       <RowActionsMenu
                         onEdit={() => setEditingInvoice(invoice)}
                         onDelete={() => setDeletingInvoice(invoice)}
+                        onCreatePaymentPlan={
+                          invoice.status !== "paid" &&
+                          !invoiceHasPaymentPlan(invoice.id, paymentPlans)
+                            ? () => setCreatingPlanFor(invoice)
+                            : undefined
+                        }
                       />
                     </div>
                   </td>

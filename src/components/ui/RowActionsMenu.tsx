@@ -5,9 +5,11 @@ import { useEffect, useRef, useState } from "react";
 export function RowActionsMenu({
   onEdit,
   onDelete,
+  onCreatePaymentPlan,
 }: {
   onEdit: () => void;
   onDelete: () => void;
+  onCreatePaymentPlan?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -41,7 +43,7 @@ export function RowActionsMenu({
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-32 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           <button
             type="button"
             onClick={(e) => {
@@ -53,6 +55,19 @@ export function RowActionsMenu({
           >
             Edit
           </button>
+          {onCreatePaymentPlan && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onCreatePaymentPlan();
+              }}
+              className="block w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+            >
+              Create payment plan
+            </button>
+          )}
           <button
             type="button"
             onClick={(e) => {
