@@ -32,6 +32,21 @@ interface NewInvoiceInput {
   description: string;
 }
 
+interface UpdateClientInput {
+  name: string;
+  email: string;
+  phone: string;
+  currency: string;
+}
+
+interface UpdateInvoiceInput {
+  clientId: string;
+  amount: number;
+  dueDate: string;
+  description: string;
+  status: Invoice["status"];
+}
+
 interface AppDataContextValue {
   clients: Client[];
   invoices: Invoice[];
@@ -41,6 +56,10 @@ interface AppDataContextValue {
   loading: boolean;
   addClient: (input: NewClientInput) => Promise<Client>;
   addInvoice: (input: NewInvoiceInput) => Promise<Invoice>;
+  updateClient: (id: string, input: UpdateClientInput) => Promise<Client>;
+  deleteClient: (id: string) => Promise<void>;
+  updateInvoice: (invoiceNumber: string, input: UpdateInvoiceInput) => Promise<Invoice>;
+  deleteInvoice: (invoiceNumber: string) => Promise<void>;
   markInvoicePaid: (invoiceId: string) => Promise<void>;
   sendReminderNow: (invoiceId: string) => Promise<void>;
   toggleInstallmentPaid: (planId: string, installmentId: string) => Promise<void>;
@@ -132,6 +151,51 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const updateClient = useCallback(
+    async (id: string, input: UpdateClientInput): Promise<Client> => {
+      const client = await fetchJson<Client>(`/api/clients/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      });
+      setClients((prev) => prev.map((c) => (c.id === id ? client : c)));
+      return client;
+    },
+    []
+  );
+
+  const deleteClient = useCallback(async (id: string) => {
+    await fetchJson<{ success: true }>(`/api/clients/${id}`, {
+      method: "DELETE",
+    });
+    setClients((prev) => prev.filter((c) => c.id !== id));
+    setInvoices((prev) => prev.filter((inv) => inv.clientId !== id));
+    setPaymentPlans((prev) => prev.filter((p) => p.clientId !== id));
+    setActivityLog((prev) => prev.filter((a) => a.clientId !== id));
+  }, []);
+
+  const updateInvoice = useCallback(
+    async (invoiceNumber: string, input: UpdateInvoiceInput): Promise<Invoice> => {
+      const invoice = await fetchJson<Invoice>(`/api/invoices/${invoiceNumber}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      });
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === invoiceNumber ? invoice : inv))
+      );
+      return invoice;
+    },
+    []
+  );
+
+  const deleteInvoice = useCallback(async (invoiceNumber: string) => {
+    await fetchJson<{ success: true }>(`/api/invoices/${invoiceNumber}`, {
+      method: "DELETE",
+    });
+    setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceNumber));
+    setPaymentPlans((prev) => prev.filter((p) => p.invoiceId !== invoiceNumber));
+    setActivityLog((prev) => prev.filter((a) => a.invoiceId !== invoiceNumber));
+  }, []);
 
   const markInvoicePaid = useCallback(async (invoiceId: string) => {
     const result = await fetchJson<{ invoice: Invoice; activity: ActivityEntry | null }>(
@@ -225,6 +289,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       loading,
       addClient,
       addInvoice,
+      updateClient,
+      deleteClient,
+      updateInvoice,
+      deleteInvoice,
       markInvoicePaid,
       sendReminderNow,
       toggleInstallmentPaid,
@@ -240,6 +308,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       loading,
       addClient,
       addInvoice,
+      updateClient,
+      deleteClient,
+      updateInvoice,
+      deleteInvoice,
       markInvoicePaid,
       sendReminderNow,
       toggleInstallmentPaid,
