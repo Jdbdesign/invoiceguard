@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:backup": "tsx prisma/backup-before-auth-migration.ts",
+    "db:backfill-owner": "tsx prisma/backfill-default-owner.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
