@@ -7,6 +7,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/Spinner";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
@@ -47,6 +48,7 @@ export default function ClientDetailPage() {
     count: number;
     currency: string;
   } | null>(null);
+  const [creatingPlanFor, setCreatingPlanFor] = useState<Invoice | null>(null);
 
   const client = clients.find((c) => c.id === params.id);
 
@@ -157,6 +159,14 @@ export default function ClientDetailPage() {
                       </div>
                       {(invoicePlanRemaining > 0 || invoice.status !== "paid") && (
                         <div className="flex flex-col gap-1.5">
+                          {invoice.status !== "paid" && !invoicePlan && (
+                            <button
+                              onClick={() => setCreatingPlanFor(invoice)}
+                              className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                            >
+                              Create payment plan
+                            </button>
+                          )}
                           {invoicePlanRemaining > 0 ? (
                             // Shown whenever the payment plan still has a
                             // remaining balance, even if the invoice itself
@@ -409,6 +419,12 @@ export default function ClientDetailPage() {
             setConfirmingSettlePlan(null);
           }
         }}
+      />
+
+      <CreatePaymentPlanModal
+        open={creatingPlanFor !== null}
+        onClose={() => setCreatingPlanFor(null)}
+        invoice={creatingPlanFor}
       />
     </div>
   );
