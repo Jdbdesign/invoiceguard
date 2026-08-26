@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapActivity } from "@/lib/mappers";
 import type { ReminderStage } from "@/lib/types";
+import { auth } from "@/auth";
 
 const VALID_STAGES: ReminderStage[] = ["friendly", "firm", "final"];
 
@@ -19,6 +20,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
 
   let body: SendReminderRequestBody;
@@ -39,8 +43,8 @@ export async function POST(
     );
   }
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const invoice = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
   });
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });

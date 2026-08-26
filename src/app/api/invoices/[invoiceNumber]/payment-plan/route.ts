@@ -9,6 +9,7 @@ import {
   isValidFrequency,
   isValidInstallmentCount,
 } from "@/lib/paymentPlan";
+import { auth } from "@/auth";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -18,10 +19,6 @@ interface PaymentPlanRequestBody {
   frequency?: unknown;
 }
 
-// `new Date("YYYY-MM-DDT...")` silently rolls over out-of-range days/months
-// (e.g. "2026-02-31" becomes 2026-03-03) instead of producing an Invalid
-// Date, so a NaN check alone can't detect a calendar-invalid date. Round-trip
-// the parsed components against the original string instead.
 function isValidCalendarDate(iso: string): boolean {
   const parsed = fromIsoDate(iso);
   if (Number.isNaN(parsed.getTime())) return false;
@@ -37,6 +34,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
   let body: PaymentPlanRequestBody;
   try {
@@ -60,8 +60,8 @@ export async function POST(
     );
   }
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const invoice = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
     include: { client: true, paymentPlan: true },
   });
   if (!invoice) {
