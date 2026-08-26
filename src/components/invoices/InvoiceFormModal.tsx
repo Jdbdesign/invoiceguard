@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
+import { invoiceHasPaymentPlan } from "@/lib/utils";
 import type { Invoice, InvoiceStatus } from "@/lib/types";
 
 const EDITABLE_STATUSES: { value: InvoiceStatus; label: string }[] = [
@@ -31,7 +32,7 @@ export function InvoiceFormModal({
   const [status, setStatus] = useState<InvoiceStatus>("unpaid");
 
   const hasPaymentPlan =
-    isEdit && invoice ? paymentPlans.some((p) => p.invoiceId === invoice.id) : false;
+    isEdit && invoice ? invoiceHasPaymentPlan(invoice.id, paymentPlans) : false;
   const amountLocked = isEdit && (hasPaymentPlan || (invoice?.amountPaid ?? 0) > 0);
   const amountLockedReason = hasPaymentPlan
     ? "This invoice has an active payment plan — manage payments through the installment list instead."
