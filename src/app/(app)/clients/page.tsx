@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { ClientFormModal } from "@/components/clients/ClientFormModal";
 import { useAppData } from "@/context/AppDataContext";
+import { useToast } from "@/context/ToastContext";
 import { clientStatusLabel } from "@/lib/badgeHelpers";
+import type { Client } from "@/lib/types";
 import {
   formatCurrency,
   formatDate,
@@ -16,8 +20,11 @@ import {
 } from "@/lib/utils";
 
 export default function ClientsPage() {
-  const { clients, invoices, paymentPlans } = useAppData();
+  const { clients, invoices, paymentPlans, deleteClient } = useAppData();
+  const { showToast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
 
   const rows = clients
     .map((client) => {
@@ -58,6 +65,7 @@ export default function ClientsPage() {
               <th className="px-5 py-3">Total owed</th>
               <th className="px-5 py-3">Oldest overdue invoice</th>
               <th className="px-5 py-3">Status</th>
+              <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -92,6 +100,12 @@ export default function ClientsPage() {
                   <td className="px-5 py-4">
                     <Badge variant={badge.variant}>{badge.label}</Badge>
                   </td>
+                  <td className="px-5 py-4 text-right">
+                    <RowActionsMenu
+                      onEdit={() => setEditingClient(client)}
+                      onDelete={() => setDeletingClient(client)}
+                    />
+                  </td>
                 </tr>
               );
             })}
@@ -100,6 +114,30 @@ export default function ClientsPage() {
       </Card>
 
       <ClientFormModal open={modalOpen} onClose={() => setModalOpen(false)} />
+
+      <ClientFormModal
+        open={editingClient !== null}
+        onClose={() => setEditingClient(null)}
+        client={editingClient ?? undefined}
+      />
+
+      <ConfirmDeleteModal
+        open={deletingClient !== null}
+        onClose={() => setDeletingClient(null)}
+        title="Delete client"
+        confirmText={deletingClient?.name ?? ""}
+        warning="Deleting this client also permanently deletes all of their invoices, payment plans, and activity history. This cannot be undone."
+        onConfirm={async () => {
+          if (!deletingClient) return;
+          try {
+            await deleteClient(deletingClient.id);
+            showToast(`${deletingClient.name} deleted`);
+            setDeletingClient(null);
+          } catch {
+            showToast("Failed to delete client");
+          }
+        }}
+      />
     </div>
   );
 }
