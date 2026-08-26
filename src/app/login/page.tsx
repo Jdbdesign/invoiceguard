@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   return (
@@ -14,6 +15,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -25,14 +27,14 @@ function LoginForm() {
     setError(null);
 
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       });
 
-      if (!res.ok) {
-        setError("Incorrect password. Try again.");
+      if (result?.error) {
+        setError("Incorrect email or password. Try again.");
         setSubmitting(false);
         return;
       }
@@ -72,11 +74,20 @@ function LoginForm() {
           onSubmit={handleSubmit}
           className="rounded-2xl border border-slate-800 bg-slate-800/40 p-6 shadow-xl shadow-black/20"
         >
-          <label className="mb-1.5 block text-xs font-medium text-slate-400">Password</label>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">Email</label>
+          <input
+            type="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@company.com"
+            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+
+          <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">Password</label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
@@ -90,12 +101,7 @@ function LoginForm() {
             >
               {showPassword ? (
                 <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" strokeWidth={2}>
-                  <path
-                    d="M3 3l18 18"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M3 3l18 18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
                   <path
                     d="M10.6 5.2A10.6 10.6 0 0112 5c5.5 0 9.4 4 10.7 7-.5 1.1-1.2 2.2-2.1 3.1m-3.2 2.1A10.7 10.7 0 0112 19c-5.5 0-9.4-4-10.7-7 .6-1.4 1.6-2.8 2.9-4"
                     stroke="currentColor"
@@ -127,11 +133,18 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={submitting || password.length === 0}
+            disabled={submitting || !email || password.length === 0}
             className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>
+
+          <p className="mt-4 text-center text-xs text-slate-500">
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="font-medium text-blue-400 hover:text-blue-300">
+              Sign up
+            </a>
+          </p>
         </form>
       </div>
     </div>
