@@ -8,6 +8,7 @@ import { PageLoading } from "@/components/ui/Spinner";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { InvoiceFormModal } from "@/components/invoices/InvoiceFormModal";
+import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel } from "@/lib/badgeHelpers";
@@ -18,6 +19,7 @@ import {
   getClientById,
   getDaysOverdue,
   getInvoiceBalance,
+  invoiceHasPaymentPlan,
 } from "@/lib/utils";
 
 type StatusFilter = "all" | InvoiceStatus;
@@ -32,13 +34,15 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 ];
 
 export default function InvoicesPage() {
-  const { clients, invoices, sendReminderNow, deleteInvoice, loading } = useAppData();
+  const { clients, invoices, paymentPlans, sendReminderNow, deleteInvoice, loading } =
+    useAppData();
   const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
+  const [creatingPlanFor, setCreatingPlanFor] = useState<Invoice | null>(null);
 
   const rows = useMemo(() => {
     const filtered =
@@ -156,6 +160,15 @@ export default function InvoicesPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {invoice.status !== "paid" &&
+                        !invoiceHasPaymentPlan(invoice.id, paymentPlans) && (
+                          <button
+                            onClick={() => setCreatingPlanFor(invoice)}
+                            className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                          >
+                            Create payment plan
+                          </button>
+                        )}
                       {invoice.status !== "paid" && (
                         <button
                           onClick={() => {
@@ -211,6 +224,12 @@ export default function InvoicesPage() {
             showToast("Failed to delete invoice");
           }
         }}
+      />
+
+      <CreatePaymentPlanModal
+        open={creatingPlanFor !== null}
+        onClose={() => setCreatingPlanFor(null)}
+        invoice={creatingPlanFor}
       />
     </div>
   );
