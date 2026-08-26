@@ -6,6 +6,7 @@ import { daysBetween, todayIso } from "@/lib/utils";
 import { crossedStageToday } from "@/lib/reminderStage";
 import { draftReminderEmail } from "@/lib/claude";
 import { getOrCreateSettings } from "@/lib/settings";
+import { auth } from "@/auth";
 
 const DEDUPE_WINDOW_MS = 20 * 60 * 60 * 1000;
 
@@ -25,14 +26,18 @@ async function alreadyRemindedRecently(
 }
 
 export async function POST() {
-  const settingsRow = await getOrCreateSettings();
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ownerId = session.user.id;
+
+  const settingsRow = await getOrCreateSettings(ownerId);
   const schedule = mapSettings(settingsRow);
   const today = todayIso();
 
   const results: { invoiceNumber: string; stage: string; clientName: string }[] = [];
 
   const invoices = await prisma.invoice.findMany({
-    where: { status: { in: ["unpaid", "partial"] } },
+    where: { status: { in: ["unpaid", "partial"] }, client: { ownerId } },
     include: { client: true },
   });
 
@@ -76,7 +81,7 @@ export async function POST() {
   }
 
   const pendingInstallments = await prisma.installment.findMany({
-    where: { status: "pending" },
+    where: { status: "pending", paymentPlan: { invoice: { client: { ownerId } } } },
     include: {
       paymentPlan: { include: { invoice: { include: { client: true } } } },
     },
