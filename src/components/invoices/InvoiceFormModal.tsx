@@ -1,62 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
+import type { Invoice, InvoiceStatus } from "@/lib/types";
+
+const EDITABLE_STATUSES: { value: InvoiceStatus; label: string }[] = [
+  { value: "unpaid", label: "Unpaid" },
+  { value: "partial", label: "Partial" },
+  { value: "paid", label: "Paid" },
+];
 
 export function InvoiceFormModal({
   open,
   onClose,
+  invoice,
 }: {
   open: boolean;
   onClose: () => void;
+  invoice?: Invoice;
 }) {
-  const { clients, addInvoice } = useAppData();
+  const { clients, addInvoice, updateInvoice } = useAppData();
   const { showToast } = useToast();
+  const isEdit = Boolean(invoice);
   const [clientId, setClientId] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<InvoiceStatus>("unpaid");
+
+  useEffect(() => {
+    if (!open) return;
+    setClientId(invoice?.clientId ?? "");
+    setAmount(invoice ? String(invoice.amount) : "");
+    setDueDate(invoice?.dueDate ?? "");
+    setDescription(invoice?.description ?? "");
+    setStatus(
+      invoice?.status && invoice.status !== "payment_plan" ? invoice.status : "unpaid"
+    );
+  }, [open, invoice]);
 
   const selectedClient = clients.find((c) => c.id === clientId);
-
-  function reset() {
-    setClientId("");
-    setAmount("");
-    setDueDate("");
-    setDescription("");
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const numAmount = Number(amount);
     if (!clientId || !numAmount || !dueDate || !description.trim()) return;
     try {
-      const invoice = await addInvoice({
-        clientId,
-        amount: numAmount,
-        dueDate,
-        description: description.trim(),
-      });
-      showToast(`Invoice ${invoice.id} created`);
-      reset();
+      if (isEdit && invoice) {
+        const updated = await updateInvoice(invoice.id, {
+          clientId,
+          amount: numAmount,
+          dueDate,
+          description: description.trim(),
+          status,
+        });
+        showToast(`Invoice ${updated.id} updated`);
+      } else {
+        const created = await addInvoice({
+          clientId,
+          amount: numAmount,
+          dueDate,
+          description: description.trim(),
+        });
+        showToast(`Invoice ${created.id} created`);
+      }
       onClose();
     } catch {
-      showToast("Failed to create invoice");
+      showToast(isEdit ? "Failed to update invoice" : "Failed to create invoice");
     }
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={() => {
-        reset();
-        onClose();
-      }}
-      title="Add invoice"
-    >
+    <Modal open={open} onClose={onClose} title={isEdit ? "Edit invoice" : "Add invoice"}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {isEdit && invoice && (
+          <Field label="Invoice number">
+            <input
+              value={invoice.id}
+              disabled
+              className="input cursor-not-allowed bg-slate-50 text-slate-500"
+            />
+          </Field>
+        )}
         <Field label="Client">
           <select
             required
@@ -106,14 +133,26 @@ export function InvoiceFormModal({
             />
           </Field>
         </div>
+        {isEdit && (
+          <Field label="Status">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as InvoiceStatus)}
+              className="input"
+            >
+              {EDITABLE_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
+            onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
           >
             Cancel
@@ -122,7 +161,7 @@ export function InvoiceFormModal({
             type="submit"
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
           >
-            Add invoice
+            {isEdit ? "Save changes" : "Add invoice"}
           </button>
         </div>
       </form>
