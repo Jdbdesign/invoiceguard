@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# stale local sqlite artifact (project now runs on Postgres)
+dev.db
+
 # vercel
 .vercel
 

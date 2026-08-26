@@ -29,6 +29,18 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Environment Variables
+
+Set these wherever the app runs (local `.env`, Vercel Project Settings → Environment Variables):
+
+| Variable | Description |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string (e.g. from Neon). Used by Prisma for both migrations and the runtime client. |
+| `ANTHROPIC_API_KEY` | Claude API key, used to draft reminder emails. |
+| `APP_PASSWORD` | The password required to access the app. Also doubles as the signing secret for the login session cookie — keep it private and non-trivial. |
+
+After changing `DATABASE_URL`, run `npm run db:migrate` (or apply migrations however your deploy pipeline does it) and `npm run db:seed` if you need demo data.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

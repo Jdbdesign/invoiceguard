@@ -9,7 +9,6 @@ export interface Client {
   name: string;
   email: string;
   phone: string;
-  company: string;
 }
 
 export interface Invoice {
@@ -42,7 +41,7 @@ export interface PaymentPlan {
 
 export type ActivityType =
   | "reminder_sent"
-  | "response_logged"
+  | "client_reply"
   | "payment_received"
   | "plan_created"
   | "installment_paid";
@@ -54,7 +53,6 @@ export interface ActivityEntry {
   type: ActivityType;
   date: string;
   stage?: ReminderStage;
-  channel?: "email" | "sms";
   message: string;
 }
 

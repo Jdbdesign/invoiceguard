@@ -1,45 +1,38 @@
-import type {
-  ActivityEntry,
-  Client,
-  Invoice,
-  PaymentPlan,
-  ReminderSchedule,
-} from "./types";
+import "dotenv/config";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-export const TODAY_ISO = "2026-08-24";
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
-export const clients: Client[] = [
+const clients = [
   {
     id: "c1",
     name: "Northwind Design Co.",
-    company: "Northwind Design Co.",
     email: "billing@northwinddesign.co",
     phone: "(503) 555-0142",
   },
   {
     id: "c2",
     name: "Bramble & Finch Ltd",
-    company: "Bramble & Finch Ltd",
     email: "accounts@brambleandfinch.com",
     phone: "(415) 555-0198",
   },
   {
     id: "c3",
     name: "Solstice Robotics",
-    company: "Solstice Robotics Inc.",
     email: "ap@solsticerobotics.io",
     phone: "(206) 555-0133",
   },
   {
     id: "c4",
     name: "Harbor & Vine Market",
-    company: "Harbor & Vine Market",
     email: "finance@harborvine.market",
     phone: "(312) 555-0177",
   },
 ];
 
-export const invoices: Invoice[] = [
+const invoices = [
   {
     id: "INV-2201",
     clientId: "c1",
@@ -122,10 +115,9 @@ export const invoices: Invoice[] = [
   },
 ];
 
-export const paymentPlans: PaymentPlan[] = [
+const paymentPlans = [
   {
     id: "PP-01",
-    clientId: "c2",
     invoiceId: "INV-2144",
     totalAmount: 9500,
     startDate: "2026-07-15",
@@ -138,7 +130,6 @@ export const paymentPlans: PaymentPlan[] = [
   },
   {
     id: "PP-02",
-    clientId: "c4",
     invoiceId: "INV-2176",
     totalAmount: 6000,
     startDate: "2026-08-01",
@@ -150,14 +141,13 @@ export const paymentPlans: PaymentPlan[] = [
   },
 ];
 
-export const activityLog: ActivityEntry[] = [
+const activityLog = [
   {
     id: "a1",
     clientId: "c3",
     invoiceId: "INV-2051",
     type: "reminder_sent",
     stage: "final",
-    channel: "email",
     date: "2026-08-23",
     message:
       "Final notice: invoice INV-2051 for $15,750.00 is now 77 days past due. Immediate payment required to avoid escalation.",
@@ -174,7 +164,7 @@ export const activityLog: ActivityEntry[] = [
     id: "a3",
     clientId: "c1",
     invoiceId: "INV-2187",
-    type: "response_logged",
+    type: "client_reply",
     date: "2026-08-20",
     message: "Client replied: \"Will process payment by end of week, apologies for the delay.\"",
   },
@@ -184,7 +174,6 @@ export const activityLog: ActivityEntry[] = [
     invoiceId: "INV-2187",
     type: "reminder_sent",
     stage: "firm",
-    channel: "email",
     date: "2026-08-19",
     message: "Firm reminder sent: invoice INV-2187 for $1,800.00 is 14 days past due.",
   },
@@ -210,7 +199,6 @@ export const activityLog: ActivityEntry[] = [
     invoiceId: "INV-2144",
     type: "reminder_sent",
     stage: "friendly",
-    channel: "email",
     date: "2026-08-14",
     message: "Friendly reminder sent: installment of $2,375.00 due 2026-08-15.",
   },
@@ -218,7 +206,7 @@ export const activityLog: ActivityEntry[] = [
     id: "a8",
     clientId: "c3",
     invoiceId: "INV-2033",
-    type: "response_logged",
+    type: "client_reply",
     date: "2026-08-10",
     message: "Client replied: \"Forwarded to our AP team, no timeline given yet.\"",
   },
@@ -228,7 +216,6 @@ export const activityLog: ActivityEntry[] = [
     invoiceId: "INV-2033",
     type: "reminder_sent",
     stage: "firm",
-    channel: "email",
     date: "2026-08-05",
     message: "Firm reminder sent: invoice INV-2033 balance of $2,100.00 is 46 days past due.",
   },
@@ -238,7 +225,6 @@ export const activityLog: ActivityEntry[] = [
     invoiceId: "INV-2187",
     type: "reminder_sent",
     stage: "friendly",
-    channel: "email",
     date: "2026-08-05",
     message: "Friendly reminder sent: invoice INV-2187 for $1,800.00 was due 2026-08-05.",
   },
@@ -248,7 +234,6 @@ export const activityLog: ActivityEntry[] = [
     invoiceId: "INV-2051",
     type: "reminder_sent",
     stage: "friendly",
-    channel: "email",
     date: "2026-07-30",
     message: "Friendly reminder sent: invoice INV-2051 for $15,750.00 was due 2026-06-07.",
   },
@@ -280,7 +265,7 @@ export const activityLog: ActivityEntry[] = [
     id: "a15",
     clientId: "c2",
     invoiceId: "INV-2144",
-    type: "response_logged",
+    type: "client_reply",
     date: "2026-07-12",
     message: "Client replied: \"Cash flow is tight this quarter — can we set up a payment plan?\"",
   },
@@ -294,8 +279,88 @@ export const activityLog: ActivityEntry[] = [
   },
 ];
 
-export const defaultReminderSchedule: ReminderSchedule = {
-  friendlyDays: 3,
-  firmDays: 15,
-  finalDays: 45,
-};
+async function main() {
+  console.log("Seeding database...");
+
+  await prisma.activityLog.deleteMany();
+  await prisma.installment.deleteMany();
+  await prisma.paymentPlan.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.client.deleteMany();
+  await prisma.settings.deleteMany();
+
+  for (const c of clients) {
+    await prisma.client.create({ data: c });
+  }
+
+  for (const inv of invoices) {
+    await prisma.invoice.create({
+      data: {
+        id: inv.id,
+        clientId: inv.clientId,
+        invoiceNumber: inv.id,
+        description: inv.description,
+        amount: inv.amount,
+        balance: Math.max(0, inv.amount - inv.amountPaid),
+        dueDate: new Date(inv.dueDate),
+        status: inv.status,
+        createdAt: new Date(inv.issueDate),
+      },
+    });
+  }
+
+  for (const plan of paymentPlans) {
+    await prisma.paymentPlan.create({
+      data: {
+        id: plan.id,
+        invoiceId: plan.invoiceId,
+        totalAmount: plan.totalAmount,
+        startDate: new Date(plan.startDate),
+        installments: {
+          create: plan.installments.map((inst, idx) => ({
+            id: inst.id,
+            installmentNumber: idx + 1,
+            amount: inst.amount,
+            dueDate: new Date(inst.dueDate),
+            paidDate: inst.paidDate ? new Date(inst.paidDate) : null,
+            status: inst.paid ? "paid" : "pending",
+          })),
+        },
+      },
+    });
+  }
+
+  for (const entry of activityLog) {
+    await prisma.activityLog.create({
+      data: {
+        id: entry.id,
+        clientId: entry.clientId,
+        invoiceId: entry.invoiceId ?? null,
+        type: entry.type,
+        stage: entry.stage ?? null,
+        message: entry.message,
+        createdAt: new Date(entry.date),
+      },
+    });
+  }
+
+  await prisma.settings.create({
+    data: {
+      id: "settings",
+      friendlyReminderDays: 3,
+      firmReminderDays: 15,
+      finalNoticeDays: 45,
+    },
+  });
+
+  console.log("Seed complete.");
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

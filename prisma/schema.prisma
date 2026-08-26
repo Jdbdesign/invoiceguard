@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+
+  invoices     Invoice[]
+  activityLogs ActivityLog[]
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  clientId      String
+  invoiceNumber String   @unique
+  description   String
+  amount        Float
+  balance       Float
+  dueDate       DateTime
+  status        String
+  createdAt     DateTime @default(now())
+
+  client       Client        @relation(fields: [clientId], references: [id])
+  activityLogs ActivityLog[]
+  paymentPlan  PaymentPlan?
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  clientId  String
+  invoiceId String?
+  type      String
+  stage     String?
+  message   String
+  createdAt DateTime @default(now())
+
+  client  Client   @relation(fields: [clientId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+}
+
+model PaymentPlan {
+  id          String   @id @default(cuid())
+  invoiceId   String   @unique
+  totalAmount Float
+  startDate   DateTime
+  createdAt   DateTime @default(now())
+
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id])
+  installments Installment[]
+}
+
+model Installment {
+  id                String    @id @default(cuid())
+  paymentPlanId     String
+  installmentNumber Int
+  amount            Float
+  dueDate           DateTime
+  paidDate          DateTime?
+  status            String    @default("pending")
+
+  paymentPlan PaymentPlan @relation(fields: [paymentPlanId], references: [id])
+}
+
+model Settings {
+  id                   String @id @default(cuid())
+  friendlyReminderDays Int    @default(3)
+  firmReminderDays     Int    @default(15)
+  finalNoticeDays      Int    @default(45)
+}

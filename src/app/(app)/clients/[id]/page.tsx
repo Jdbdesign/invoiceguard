@@ -1,0 +1,303 @@
+"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { useAppData } from "@/context/AppDataContext";
+import { useToast } from "@/context/ToastContext";
+import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
+import {
+  formatCurrency,
+  formatDate,
+  getClientInvoices,
+  getClientPaymentPlans,
+  getClientStatus,
+  getClientTotalOwed,
+  getInvoiceBalance,
+} from "@/lib/utils";
+import { ActivityIcon, activityIconVariant } from "@/components/ActivityIcon";
+
+export default function ClientDetailPage() {
+  const params = useParams<{ id: string }>();
+  const {
+    clients,
+    invoices,
+    paymentPlans,
+    activityLog,
+    markInvoicePaid,
+    sendReminderNow,
+    toggleInstallmentPaid,
+  } = useAppData();
+  const { showToast } = useToast();
+
+  const client = clients.find((c) => c.id === params.id);
+
+  if (!client) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-sm text-slate-500">Client not found.</p>
+        <Link href="/clients" className="mt-2 inline-block text-sm text-blue-600">
+          Back to clients
+        </Link>
+      </div>
+    );
+  }
+
+  const clientInvoices = getClientInvoices(client.id, invoices).sort(
+    (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+  );
+  const clientPlans = getClientPaymentPlans(client.id, paymentPlans);
+  const clientActivity = activityLog
+    .filter((a) => a.clientId === client.id)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const totalOwed = getClientTotalOwed(client.id, invoices);
+  const status = getClientStatus(client.id, invoices, paymentPlans);
+  const badge = clientStatusLabel(status);
+
+  return (
+    <div className="space-y-6">
+      <Link href="/clients" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" strokeWidth={2.2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
+        </svg>
+        All clients
+      </Link>
+
+      <Card className="p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+              {initials(client.name)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+                  {client.name}
+                </h1>
+                <Badge variant={badge.variant}>{badge.label}</Badge>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <MailIcon /> {client.email}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <PhoneIcon /> {client.phone}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Total owed
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+              {formatCurrency(totalOwed)}
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        <div className="space-y-6 lg:col-span-3">
+          <Card>
+            <CardHeader title="Invoices" subtitle={`${clientInvoices.length} total`} />
+            <div className="divide-y divide-slate-100">
+              {clientInvoices.map((invoice) => {
+                const invBadge = invoiceStatusLabel(invoice);
+                const balance = getInvoiceBalance(invoice);
+                return (
+                  <div key={invoice.id} className="flex items-center justify-between px-5 py-3.5">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {invoice.id}
+                        <span className="ml-2 font-normal text-slate-500">
+                          {invoice.description}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Due {formatDate(invoice.dueDate)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-sm font-semibold tabular-nums text-slate-900">
+                          {formatCurrency(balance)}
+                        </p>
+                        <Badge variant={invBadge.variant}>{invBadge.label}</Badge>
+                      </div>
+                      {invoice.status !== "paid" && (
+                        <div className="flex flex-col gap-1.5">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await markInvoicePaid(invoice.id);
+                                showToast(`${invoice.id} marked as paid`);
+                              } catch {
+                                showToast(`Failed to mark ${invoice.id} as paid`);
+                              }
+                            }}
+                            className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                          >
+                            Mark paid
+                          </button>
+                          <button
+                            onClick={() => {
+                              sendReminderNow(invoice.id);
+                              showToast(`Drafting reminder for ${invoice.id}…`);
+                            }}
+                            className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                          >
+                            Send reminder
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {clientPlans.map((plan) => {
+            const remaining = plan.installments
+              .filter((i) => !i.paid)
+              .reduce((s, i) => s + i.amount, 0);
+            return (
+              <Card key={plan.id}>
+                <CardHeader
+                  title={`Payment plan ${plan.id}`}
+                  subtitle={`${formatCurrency(plan.totalAmount)} total · ${formatCurrency(
+                    remaining
+                  )} remaining · started ${formatDate(plan.startDate)}`}
+                />
+                <div className="divide-y divide-slate-100">
+                  {plan.installments.map((inst, idx) => (
+                    <div
+                      key={inst.id}
+                      className="flex items-center justify-between px-5 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                            inst.paid
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-800">
+                            Due {formatDate(inst.dueDate)}
+                          </p>
+                          {inst.paid && inst.paidDate && (
+                            <p className="text-xs text-emerald-600">
+                              Paid {formatDate(inst.paidDate)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm font-medium tabular-nums text-slate-900">
+                          {formatCurrency(inst.amount)}
+                        </p>
+                        <button
+                          onClick={() => {
+                            toggleInstallmentPaid(plan.id, inst.id).catch(() =>
+                              showToast("Failed to update installment")
+                            );
+                          }}
+                          className={`whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium transition ${
+                            inst.paid
+                              ? "border-slate-200 text-slate-500 hover:bg-slate-50"
+                              : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                          }`}
+                        >
+                          {inst.paid ? "Undo" : "Mark paid"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader
+              title="Activity log"
+              subtitle="Every reminder sent and response logged"
+            />
+            <ol className="max-h-[840px] space-y-0 overflow-y-auto px-5 py-4">
+              {clientActivity.map((entry, idx) => (
+                <li key={entry.id} className="relative flex gap-3 pb-6 last:pb-0">
+                  {idx !== clientActivity.length - 1 && (
+                    <span className="absolute left-3.5 top-7 h-full w-px bg-slate-100" />
+                  )}
+                  <div
+                    className={`z-10 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${activityIconVariant(
+                      entry.type
+                    )}`}
+                  >
+                    <ActivityIcon type={entry.type} className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-slate-500">
+                        {formatDate(entry.date)}
+                        {entry.stage && (
+                          <span className="ml-1.5 capitalize text-slate-400">
+                            · {entry.stage} reminder
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <p className="mt-0.5 text-sm text-slate-800">{entry.message}</p>
+                  </div>
+                </li>
+              ))}
+              {clientActivity.length === 0 && (
+                <p className="py-6 text-center text-sm text-slate-500">
+                  No activity logged yet.
+                </p>
+              )}
+            </ol>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function initials(name: string): string {
+  const letters = name.match(/[A-Za-z]+/g) ?? [];
+  return letters
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
+function MailIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 6.5L12 13l8.5-6.5" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M7 3.5c-2 0-3.5 1.6-3.2 3.6.6 4 3.5 8.5 7.1 11 2.1 1.5 5.2.9 6.6-1.2l.6-1a1.4 1.4 0 00-.5-2l-2.5-1.5a1.4 1.4 0 00-1.7.2l-.8.8c-1.6-1-3-2.4-4-4l.8-.8c.5-.5.6-1.2.2-1.8L8.1 4.2A1.4 1.4 0 007 3.5z"
+      />
+    </svg>
+  );
+}
