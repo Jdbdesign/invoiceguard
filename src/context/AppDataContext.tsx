@@ -10,6 +10,8 @@ import {
 } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/context/ToastContext";
+import { todayIso, getInvoiceBalance } from "@/lib/utils";
+import { computeInstallmentSchedule, type PaymentPlanFrequency } from "@/lib/paymentPlan";
 import type {
   ActivityEntry,
   Client,
@@ -47,6 +49,12 @@ interface UpdateInvoiceInput {
   status: Invoice["status"];
 }
 
+interface CreatePaymentPlanInput {
+  installmentCount: number;
+  firstDueDate: string;
+  frequency: PaymentPlanFrequency;
+}
+
 interface AppDataContextValue {
   clients: Client[];
   invoices: Invoice[];
@@ -60,9 +68,14 @@ interface AppDataContextValue {
   deleteClient: (id: string) => Promise<void>;
   updateInvoice: (invoiceNumber: string, input: UpdateInvoiceInput) => Promise<Invoice>;
   deleteInvoice: (invoiceNumber: string) => Promise<void>;
+  createPaymentPlan: (
+    invoice: Invoice,
+    input: CreatePaymentPlanInput
+  ) => Promise<PaymentPlan>;
   markInvoicePaid: (invoiceId: string) => Promise<void>;
   sendReminderNow: (invoiceId: string) => Promise<void>;
   toggleInstallmentPaid: (planId: string, installmentId: string) => Promise<void>;
+  settlePaymentPlan: (invoiceId: string) => Promise<void>;
   updateReminderSchedule: (schedule: ReminderSchedule) => Promise<void>;
   runDailyCheck: () => Promise<{ remindersSent: number }>;
 }
@@ -198,15 +211,29 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const markInvoicePaid = useCallback(async (invoiceId: string) => {
-    const result = await fetchJson<{ invoice: Invoice; activity: ActivityEntry | null }>(
-      `/api/invoices/${invoiceId}/mark-paid`,
-      { method: "POST" }
-    );
-    setInvoices((prev) =>
-      prev.map((inv) => (inv.id === invoiceId ? result.invoice : inv))
-    );
-    if (result.activity) {
-      setActivityLog((prev) => [result.activity as ActivityEntry, ...prev]);
+    let previous: Invoice | undefined;
+    setInvoices((prev) => {
+      previous = prev.find((inv) => inv.id === invoiceId);
+      return prev.map((inv) =>
+        inv.id === invoiceId ? { ...inv, status: "paid", amountPaid: inv.amount } : inv
+      );
+    });
+    try {
+      const result = await fetchJson<{ invoice: Invoice; activity: ActivityEntry | null }>(
+        `/api/invoices/${invoiceId}/mark-paid`,
+        { method: "POST" }
+      );
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === invoiceId ? result.invoice : inv))
+      );
+      if (result.activity) {
+        setActivityLog((prev) => [result.activity as ActivityEntry, ...prev]);
+      }
+    } catch (error) {
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === invoiceId && previous ? previous : inv))
+      );
+      throw error;
     }
   }, []);
 
@@ -232,25 +259,170 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const toggleInstallmentPaid = useCallback(
     async (planId: string, installmentId: string) => {
-      const result = await fetchJson<{
-        installment: PaymentPlan["installments"][number];
-        activity: ActivityEntry | null;
-      }>(`/api/installments/${installmentId}`, { method: "PATCH" });
-
+      let previous: PaymentPlan["installments"][number] | undefined;
       setPaymentPlans((prev) =>
         prev.map((plan) =>
           plan.id !== planId
             ? plan
             : {
                 ...plan,
-                installments: plan.installments.map((inst) =>
-                  inst.id === installmentId ? result.installment : inst
-                ),
+                installments: plan.installments.map((inst) => {
+                  if (inst.id !== installmentId) return inst;
+                  previous = inst;
+                  return {
+                    ...inst,
+                    paid: !inst.paid,
+                    paidDate: !inst.paid ? todayIso() : undefined,
+                  };
+                }),
               }
         )
       );
-      if (result.activity) {
-        setActivityLog((prev) => [result.activity as ActivityEntry, ...prev]);
+      try {
+        const result = await fetchJson<{
+          installment: PaymentPlan["installments"][number];
+          activity: ActivityEntry | null;
+        }>(`/api/installments/${installmentId}`, { method: "PATCH" });
+
+        setPaymentPlans((prev) =>
+          prev.map((plan) =>
+            plan.id !== planId
+              ? plan
+              : {
+                  ...plan,
+                  installments: plan.installments.map((inst) =>
+                    inst.id === installmentId ? result.installment : inst
+                  ),
+                }
+          )
+        );
+        if (result.activity) {
+          setActivityLog((prev) => [result.activity as ActivityEntry, ...prev]);
+        }
+      } catch (error) {
+        setPaymentPlans((prev) =>
+          prev.map((plan) =>
+            plan.id !== planId
+              ? plan
+              : {
+                  ...plan,
+                  installments: plan.installments.map((inst) =>
+                    inst.id === installmentId && previous ? previous : inst
+                  ),
+                }
+          )
+        );
+        throw error;
+      }
+    },
+    []
+  );
+
+  const settlePaymentPlan = useCallback(async (invoiceId: string) => {
+    let previousPlan: PaymentPlan | undefined;
+    let previousInvoice: Invoice | undefined;
+
+    setPaymentPlans((prev) => {
+      previousPlan = prev.find((p) => p.invoiceId === invoiceId);
+      if (!previousPlan) return prev;
+      const planId = previousPlan.id;
+      return prev.map((plan) =>
+        plan.id !== planId
+          ? plan
+          : {
+              ...plan,
+              installments: plan.installments.map((inst) =>
+                inst.paid ? inst : { ...inst, paid: true, paidDate: todayIso() }
+              ),
+            }
+      );
+    });
+    setInvoices((prev) => {
+      previousInvoice = prev.find((inv) => inv.id === invoiceId);
+      return prev.map((inv) =>
+        inv.id === invoiceId ? { ...inv, status: "paid", amountPaid: inv.amount } : inv
+      );
+    });
+
+    try {
+      const result = await fetchJson<{
+        installments: PaymentPlan["installments"];
+        invoice: Invoice;
+        activity: ActivityEntry;
+      }>(`/api/invoices/${invoiceId}/settle-payment-plan`, { method: "POST" });
+
+      const settledPlanId = previousPlan?.id;
+      setPaymentPlans((prev) =>
+        prev.map((plan) =>
+          settledPlanId && plan.id === settledPlanId
+            ? { ...plan, installments: result.installments }
+            : plan
+        )
+      );
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === result.invoice.id ? result.invoice : inv))
+      );
+      setActivityLog((prev) => [result.activity, ...prev]);
+    } catch (error) {
+      const restoredPlan = previousPlan;
+      const restoredInvoice = previousInvoice;
+      if (restoredPlan) {
+        setPaymentPlans((prev) =>
+          prev.map((plan) => (plan.id === restoredPlan.id ? restoredPlan : plan))
+        );
+      }
+      if (restoredInvoice) {
+        setInvoices((prev) =>
+          prev.map((inv) => (inv.id === restoredInvoice.id ? restoredInvoice : inv))
+        );
+      }
+      throw error;
+    }
+  }, []);
+
+  const createPaymentPlan = useCallback(
+    async (invoice: Invoice, input: CreatePaymentPlanInput): Promise<PaymentPlan> => {
+      const remaining = getInvoiceBalance(invoice);
+      const schedule = computeInstallmentSchedule(
+        remaining,
+        input.installmentCount,
+        input.firstDueDate,
+        input.frequency
+      );
+      const tempId = `temp-plan-${invoice.id}`;
+      const optimisticPlan: PaymentPlan = {
+        id: tempId,
+        clientId: invoice.clientId,
+        invoiceId: invoice.id,
+        totalAmount: remaining,
+        startDate: input.firstDueDate,
+        installments: schedule.map((installment, index) => ({
+          id: `${tempId}-${index}`,
+          amount: installment.amount,
+          dueDate: installment.dueDate,
+          paid: false,
+        })),
+      };
+
+      setPaymentPlans((prev) => [optimisticPlan, ...prev]);
+      try {
+        const result = await fetchJson<{ plan: PaymentPlan; activity: ActivityEntry }>(
+          `/api/invoices/${invoice.id}/payment-plan`,
+          { method: "POST", body: JSON.stringify(input) }
+        );
+        setPaymentPlans((prev) =>
+          prev.map((p) => (p.id === tempId ? result.plan : p))
+        );
+        setInvoices((prev) =>
+          prev.map((inv) =>
+            inv.id === invoice.id ? { ...inv, status: "payment_plan" } : inv
+          )
+        );
+        setActivityLog((prev) => [result.activity, ...prev]);
+        return result.plan;
+      } catch (error) {
+        setPaymentPlans((prev) => prev.filter((p) => p.id !== tempId));
+        throw error;
       }
     },
     []
@@ -293,9 +465,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deleteClient,
       updateInvoice,
       deleteInvoice,
+      createPaymentPlan,
       markInvoicePaid,
       sendReminderNow,
       toggleInstallmentPaid,
+      settlePaymentPlan,
       updateReminderSchedule,
       runDailyCheck,
     }),
@@ -312,9 +486,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deleteClient,
       updateInvoice,
       deleteInvoice,
+      createPaymentPlan,
       markInvoicePaid,
       sendReminderNow,
       toggleInstallmentPaid,
+      settlePaymentPlan,
       updateReminderSchedule,
       runDailyCheck,
     ]
