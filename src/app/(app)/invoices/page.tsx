@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { InvoiceFormModal } from "@/components/invoices/InvoiceFormModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel } from "@/lib/badgeHelpers";
-import type { InvoiceStatus } from "@/lib/types";
+import type { Invoice, InvoiceStatus } from "@/lib/types";
 import {
   formatCurrency,
   formatDate,
@@ -29,11 +31,13 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 ];
 
 export default function InvoicesPage() {
-  const { clients, invoices, sendReminderNow } = useAppData();
+  const { clients, invoices, sendReminderNow, deleteInvoice } = useAppData();
   const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
 
   const rows = useMemo(() => {
     const filtered =
@@ -146,17 +150,23 @@ export default function InvoicesPage() {
                     <Badge variant={badge.variant}>{badge.label}</Badge>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    {invoice.status !== "paid" && (
-                      <button
-                        onClick={() => {
-                          sendReminderNow(invoice.id);
-                          showToast(`Drafting reminder for ${invoice.id}…`);
-                        }}
-                        className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                      >
-                        Send reminder
-                      </button>
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      {invoice.status !== "paid" && (
+                        <button
+                          onClick={() => {
+                            sendReminderNow(invoice.id);
+                            showToast(`Drafting reminder for ${invoice.id}…`);
+                          }}
+                          className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          Send reminder
+                        </button>
+                      )}
+                      <RowActionsMenu
+                        onEdit={() => setEditingInvoice(invoice)}
+                        onDelete={() => setDeletingInvoice(invoice)}
+                      />
+                    </div>
                   </td>
                 </tr>
               );
@@ -173,6 +183,30 @@ export default function InvoicesPage() {
       </Card>
 
       <InvoiceFormModal open={modalOpen} onClose={() => setModalOpen(false)} />
+
+      <InvoiceFormModal
+        open={editingInvoice !== null}
+        onClose={() => setEditingInvoice(null)}
+        invoice={editingInvoice ?? undefined}
+      />
+
+      <ConfirmDeleteModal
+        open={deletingInvoice !== null}
+        onClose={() => setDeletingInvoice(null)}
+        title="Delete invoice"
+        confirmText={deletingInvoice?.id ?? ""}
+        warning="Deleting this invoice also permanently removes its related activity log entries and any payment plan tied to it. This cannot be undone."
+        onConfirm={async () => {
+          if (!deletingInvoice) return;
+          try {
+            await deleteInvoice(deletingInvoice.id);
+            showToast(`Invoice ${deletingInvoice.id} deleted`);
+            setDeletingInvoice(null);
+          } catch {
+            showToast("Failed to delete invoice");
+          }
+        }}
+      />
     </div>
   );
 }
