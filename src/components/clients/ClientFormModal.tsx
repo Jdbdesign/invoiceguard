@@ -1,59 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/utils";
+import type { Client } from "@/lib/types";
 
 export function ClientFormModal({
   open,
   onClose,
+  client,
 }: {
   open: boolean;
   onClose: () => void;
+  client?: Client;
 }) {
-  const { addClient } = useAppData();
+  const { addClient, updateClient } = useAppData();
   const { showToast } = useToast();
+  const isEdit = Boolean(client);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
 
-  function reset() {
-    setName("");
-    setEmail("");
-    setPhone("");
-    setCurrency(DEFAULT_CURRENCY);
-  }
+  useEffect(() => {
+    if (!open) return;
+    setName(client?.name ?? "");
+    setEmail(client?.email ?? "");
+    setPhone(client?.phone ?? "");
+    setCurrency(client?.currency ?? DEFAULT_CURRENCY);
+  }, [open, client]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
+    const input = {
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      currency,
+    };
     try {
-      await addClient({
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        currency,
-      });
-      showToast(`${name.trim()} added to clients`);
-      reset();
+      if (isEdit && client) {
+        await updateClient(client.id, input);
+        showToast(`${input.name} updated`);
+      } else {
+        await addClient(input);
+        showToast(`${input.name} added to clients`);
+      }
       onClose();
     } catch {
-      showToast("Failed to add client");
+      showToast(isEdit ? "Failed to update client" : "Failed to add client");
     }
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={() => {
-        reset();
-        onClose();
-      }}
-      title="Add client"
-    >
+    <Modal open={open} onClose={onClose} title={isEdit ? "Edit client" : "Add client"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Client / company name">
           <input
@@ -99,10 +102,7 @@ export function ClientFormModal({
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
+            onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
           >
             Cancel
@@ -111,7 +111,7 @@ export function ClientFormModal({
             type="submit"
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
           >
-            Add client
+            {isEdit ? "Save changes" : "Add client"}
           </button>
         </div>
       </form>
