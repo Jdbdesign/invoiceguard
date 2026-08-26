@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/Spinner";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
+import { ReminderModal } from "@/components/invoices/ReminderModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
@@ -32,7 +33,6 @@ export default function ClientDetailPage() {
     activityLog,
     loading,
     markInvoicePaid,
-    sendReminderNow,
     toggleInstallmentPaid,
     settlePaymentPlan,
   } = useAppData();
@@ -49,6 +49,7 @@ export default function ClientDetailPage() {
     currency: string;
   } | null>(null);
   const [creatingPlanFor, setCreatingPlanFor] = useState<Invoice | null>(null);
+  const [draftingReminderFor, setDraftingReminderFor] = useState<string | null>(null);
 
   const client = clients.find((c) => c.id === params.id);
 
@@ -198,13 +199,10 @@ export default function ClientDetailPage() {
                           )}
                           {invoice.status !== "paid" && (
                             <button
-                              onClick={() => {
-                                sendReminderNow(invoice.id);
-                                showToast(`Drafting reminder for ${invoice.id}…`);
-                              }}
+                              onClick={() => setDraftingReminderFor(invoice.id)}
                               className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                             >
-                              Send reminder
+                              Draft reminder
                             </button>
                           )}
                         </div>
@@ -425,6 +423,12 @@ export default function ClientDetailPage() {
         open={creatingPlanFor !== null}
         onClose={() => setCreatingPlanFor(null)}
         invoice={creatingPlanFor}
+      />
+
+      <ReminderModal
+        open={draftingReminderFor !== null}
+        onClose={() => setDraftingReminderFor(null)}
+        invoiceId={draftingReminderFor}
       />
     </div>
   );

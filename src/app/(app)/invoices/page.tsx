@@ -9,6 +9,7 @@ import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { InvoiceFormModal } from "@/components/invoices/InvoiceFormModal";
 import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
+import { ReminderModal } from "@/components/invoices/ReminderModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel } from "@/lib/badgeHelpers";
@@ -34,8 +35,7 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 ];
 
 export default function InvoicesPage() {
-  const { clients, invoices, paymentPlans, sendReminderNow, deleteInvoice, loading } =
-    useAppData();
+  const { clients, invoices, paymentPlans, deleteInvoice, loading } = useAppData();
   const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
@@ -43,6 +43,7 @@ export default function InvoicesPage() {
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
   const [creatingPlanFor, setCreatingPlanFor] = useState<Invoice | null>(null);
+  const [draftingReminderFor, setDraftingReminderFor] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const filtered =
@@ -162,13 +163,10 @@ export default function InvoicesPage() {
                     <div className="flex items-center justify-end gap-2">
                       {invoice.status !== "paid" && (
                         <button
-                          onClick={() => {
-                            sendReminderNow(invoice.id);
-                            showToast(`Drafting reminder for ${invoice.id}…`);
-                          }}
+                          onClick={() => setDraftingReminderFor(invoice.id)}
                           className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                         >
-                          Send reminder
+                          Draft reminder
                         </button>
                       )}
                       <RowActionsMenu
@@ -227,6 +225,12 @@ export default function InvoicesPage() {
         open={creatingPlanFor !== null}
         onClose={() => setCreatingPlanFor(null)}
         invoice={creatingPlanFor}
+      />
+
+      <ReminderModal
+        open={draftingReminderFor !== null}
+        onClose={() => setDraftingReminderFor(null)}
+        invoiceId={draftingReminderFor}
       />
     </div>
   );

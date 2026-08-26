@@ -8,8 +8,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Modal } from "@/components/ui/Modal";
-import { useToast } from "@/context/ToastContext";
 import { todayIso, getInvoiceBalance } from "@/lib/utils";
 import { computeInstallmentSchedule, type PaymentPlanFrequency } from "@/lib/paymentPlan";
 import type {
@@ -18,6 +16,7 @@ import type {
   Invoice,
   PaymentPlan,
   ReminderSchedule,
+  ReminderStage,
 } from "@/lib/types";
 
 interface NewClientInput {
@@ -73,7 +72,13 @@ interface AppDataContextValue {
     input: CreatePaymentPlanInput
   ) => Promise<PaymentPlan>;
   markInvoicePaid: (invoiceId: string) => Promise<void>;
-  sendReminderNow: (invoiceId: string) => Promise<void>;
+  draftReminder: (
+    invoiceId: string
+  ) => Promise<{ subject: string; body: string; stage: ReminderStage | null }>;
+  sendReminder: (
+    invoiceId: string,
+    draft: { subject: string; body: string; stage: ReminderStage | null }
+  ) => Promise<void>;
   toggleInstallmentPaid: (planId: string, installmentId: string) => Promise<void>;
   settlePaymentPlan: (invoiceId: string) => Promise<void>;
   updateReminderSchedule: (schedule: ReminderSchedule) => Promise<void>;
@@ -101,7 +106,6 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const { showToast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>([]);
@@ -109,10 +113,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [reminderSchedule, setReminderSchedule] =
     useState<ReminderSchedule>(DEFAULT_SCHEDULE);
   const [loading, setLoading] = useState(true);
-
-  const [draft, setDraft] = useState<{ subject: string; body: string } | null>(
-    null
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -237,24 +237,26 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const sendReminderNow = useCallback(
-    async (invoiceId: string) => {
-      try {
-        const result = await fetchJson<{
-          subject: string;
-          body: string;
-          activity: ActivityEntry;
-        }>(`/api/invoices/${invoiceId}/send-reminder`, { method: "POST" });
-        setActivityLog((prev) => [result.activity, ...prev]);
-        setDraft({ subject: result.subject, body: result.body });
-      } catch (error) {
-        console.error("Failed to send reminder", error);
-        showToast(
-          error instanceof Error ? error.message : "Failed to draft reminder"
-        );
-      }
+  const draftReminder = useCallback(async (invoiceId: string) => {
+    return fetchJson<{
+      subject: string;
+      body: string;
+      stage: ReminderStage | null;
+    }>(`/api/invoices/${invoiceId}/draft-reminder`, { method: "POST" });
+  }, []);
+
+  const sendReminder = useCallback(
+    async (
+      invoiceId: string,
+      draft: { subject: string; body: string; stage: ReminderStage | null }
+    ) => {
+      const result = await fetchJson<{ activity: ActivityEntry }>(
+        `/api/invoices/${invoiceId}/send-reminder`,
+        { method: "POST", body: JSON.stringify(draft) }
+      );
+      setActivityLog((prev) => [result.activity, ...prev]);
     },
-    [showToast]
+    []
   );
 
   const toggleInstallmentPaid = useCallback(
@@ -467,7 +469,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deleteInvoice,
       createPaymentPlan,
       markInvoicePaid,
-      sendReminderNow,
+      draftReminder,
+      sendReminder,
       toggleInstallmentPaid,
       settlePaymentPlan,
       updateReminderSchedule,
@@ -488,7 +491,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deleteInvoice,
       createPaymentPlan,
       markInvoicePaid,
-      sendReminderNow,
+      draftReminder,
+      sendReminder,
       toggleInstallmentPaid,
       settlePaymentPlan,
       updateReminderSchedule,
@@ -497,25 +501,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AppDataContext.Provider value={value}>
-      {children}
-      <Modal
-        open={draft !== null}
-        onClose={() => setDraft(null)}
-        title="Drafted reminder email"
-      >
-        {draft && (
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="mb-3 border-b border-slate-100 pb-3 text-sm font-medium text-slate-900">
-              {draft.subject}
-            </p>
-            <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700">
-              {draft.body}
-            </pre>
-          </div>
-        )}
-      </Modal>
-    </AppDataContext.Provider>
+    <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>
   );
 }
 
