@@ -37,7 +37,7 @@ Set these wherever the app runs (local `.env`, Vercel Project Settings → Envir
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string (e.g. from Neon). Used by Prisma for both migrations and the runtime client. |
 | `ANTHROPIC_API_KEY` | Claude API key, used to draft reminder emails. |
-| `APP_PASSWORD` | The password required to access the app. Also doubles as the signing secret for the login session cookie — keep it private and non-trivial. |
+| `AUTH_SECRET` | Signing secret for Auth.js session JWTs. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Keep it private. |
 
 After changing `DATABASE_URL`, run `npm run db:migrate` (or apply migrations however your deploy pipeline does it) and `npm run db:seed` if you need demo data.
 
