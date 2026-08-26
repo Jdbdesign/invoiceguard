@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:backup": "tsx prisma/backup-before-auth-migration.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
