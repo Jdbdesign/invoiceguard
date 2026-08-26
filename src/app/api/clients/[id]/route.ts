@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapClient } from "@/lib/mappers";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/utils";
+import { auth } from "@/auth";
 
 const VALID_CURRENCIES = new Set(CURRENCIES.map((c) => c.code));
 
@@ -9,6 +10,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   const body = await request.json();
   const name = String(body.name ?? "").trim();
@@ -24,7 +28,9 @@ export async function PATCH(
     );
   }
 
-  const existing = await prisma.client.findUnique({ where: { id } });
+  const existing = await prisma.client.findFirst({
+    where: { id, ownerId: session.user.id },
+  });
   if (!existing) {
     return NextResponse.json({ error: "client not found" }, { status: 404 });
   }
@@ -40,10 +46,13 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
 
-  const client = await prisma.client.findUnique({
-    where: { id },
+  const client = await prisma.client.findFirst({
+    where: { id, ownerId: session.user.id },
     include: { invoices: { include: { paymentPlan: true } } },
   });
   if (!client) {
