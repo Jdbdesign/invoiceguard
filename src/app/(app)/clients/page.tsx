@@ -63,7 +63,7 @@ export default function ClientsPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <table className="w-full text-left text-sm">
+        <table className="hidden w-full text-left text-sm md:table">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-5 py-3">Client</th>
@@ -116,6 +116,47 @@ export default function ClientsPage() {
             })}
           </tbody>
         </table>
+
+        <div className="divide-y divide-slate-100 md:hidden">
+          {rows.map(({ client, totalOwed, oldestOverdue, status }) => {
+            const badge = clientStatusLabel(status);
+            return (
+              <div key={client.id} className="flex items-start justify-between gap-3 px-4 py-4">
+                <div className="min-w-0">
+                  <Link
+                    href={`/clients/${client.id}`}
+                    className="font-medium text-slate-900 hover:text-blue-600"
+                  >
+                    {client.name}
+                  </Link>
+                  <p className="truncate text-xs text-slate-500">{client.email}</p>
+                  <p className="mt-2 text-sm font-medium tabular-nums text-slate-900">
+                    {formatCurrency(totalOwed, client.currency)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {oldestOverdue ? (
+                      <>
+                        {oldestOverdue.id}{" "}
+                        <span className="text-slate-400">
+                          due {formatDate(oldestOverdue.dueDate)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-slate-400">No overdue invoices</span>
+                    )}
+                  </p>
+                  <div className="mt-2">
+                    <Badge variant={badge.variant}>{badge.label}</Badge>
+                  </div>
+                </div>
+                <RowActionsMenu
+                  onEdit={() => setEditingClient(client)}
+                  onDelete={() => setDeletingClient(client)}
+                />
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
       <ClientFormModal open={modalOpen} onClose={() => setModalOpen(false)} />
