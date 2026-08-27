@@ -111,7 +111,7 @@ export default function ClientDetailPage() {
               </div>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Total owed
             </p>
@@ -139,7 +139,7 @@ export default function ClientDetailPage() {
                   0
                 );
                 return (
-                  <div key={invoice.id} className="flex items-center justify-between px-5 py-3.5">
+                  <div key={invoice.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
                     <div>
                       <p className="text-sm font-medium text-slate-900">
                         {invoice.id}
@@ -151,7 +151,7 @@ export default function ClientDetailPage() {
                         Due {formatDate(invoice.dueDate)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-3">
                       <div className="text-right">
                         <p className="text-sm font-semibold tabular-nums text-slate-900">
                           {formatCurrency(balance, client.currency)}
@@ -247,7 +247,7 @@ export default function ClientDetailPage() {
                   {plan.installments.map((inst, idx) => (
                     <div
                       key={inst.id}
-                      className="flex items-center justify-between px-5 py-3"
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
                     >
                       <div className="flex items-center gap-3">
                         <div

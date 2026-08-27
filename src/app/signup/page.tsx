@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -14,6 +14,13 @@ export default function SignupPage() {
   const [confirmTouched, setConfirmTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Starts read-only so Chrome's silent fill-on-page-load skips this field —
+  // flips to editable the instant the user focuses it (see PasswordInput.tsx
+  // for the matching pattern on the password fields).
+  const [emailLocked, setEmailLocked] = useState(true);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
@@ -21,7 +28,13 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
+    // Fall back to the live DOM value in case state ever lags behind what's
+    // actually in the inputs.
+    const emailValue = emailRef.current?.value || email;
+    const passwordValue = passwordRef.current?.value || password;
+    const confirmPasswordValue = confirmPasswordRef.current?.value || confirmPassword;
+
+    if (passwordValue !== confirmPasswordValue) {
       setConfirmTouched(true);
       setError("Passwords don't match.");
       return;
@@ -32,7 +45,7 @@ export default function SignupPage() {
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: emailValue, password: passwordValue }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -42,8 +55,8 @@ export default function SignupPage() {
       }
 
       const result = await signIn("credentials", {
-        email,
-        password,
+        email: emailValue,
+        password: passwordValue,
         redirect: false,
       });
       if (result?.error) {
@@ -87,27 +100,38 @@ export default function SignupPage() {
         >
           <label className="mb-1.5 block text-xs font-medium text-slate-400">Email</label>
           <input
+            ref={emailRef}
             type="email"
-            autoFocus
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onFocus={() => setEmailLocked(false)}
+            readOnly={emailLocked}
             placeholder="you@company.com"
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
 
           <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">Password</label>
-          <PasswordInput value={password} onChange={setPassword} placeholder="At least 8 characters" />
+          <PasswordInput
+            ref={passwordRef}
+            value={password}
+            onChange={setPassword}
+            placeholder="At least 8 characters"
+            autoComplete="new-password"
+          />
           <PasswordStrengthMeter password={password} />
 
           <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">
             Confirm password
           </label>
           <PasswordInput
+            ref={confirmPasswordRef}
             value={confirmPassword}
             onChange={setConfirmPassword}
             onBlur={() => setConfirmTouched(true)}
             placeholder="Re-enter password"
             aria-invalid={confirmTouched && passwordsMismatch}
+            autoComplete="new-password"
           />
           {confirmTouched && passwordsMismatch && (
             <p className="mt-1.5 text-xs font-medium text-rose-400">Passwords don&apos;t match.</p>

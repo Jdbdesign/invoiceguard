@@ -11,74 +11,95 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export function Sidebar({ userEmail }: { userEmail: string }) {
+export function Sidebar({
+  userEmail,
+  mobileOpen = false,
+  onClose,
+}: {
+  userEmail: string;
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const initials = userEmail.slice(0, 2).toUpperCase() || "??";
 
   return (
-    <aside className="flex h-full w-60 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-900">
-      <div className="flex items-center gap-2.5 px-5 py-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
-          <svg className="h-4.5 w-4.5 text-white" viewBox="0 0 24 24" fill="none" strokeWidth={2}>
-            <path
-              d="M12 2.5l7.5 3.2v5.4c0 5-3.2 8.9-7.5 10.4-4.3-1.5-7.5-5.4-7.5-10.4V5.7L12 2.5z"
-              stroke="currentColor"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M9 12.2l2.1 2.1L15.3 10"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <span className="text-[15px] font-semibold tracking-tight text-white">
-          InvoiceGuard
-        </span>
-      </div>
-
-      <nav className="flex-1 space-y-1 px-3">
-        {NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                active
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <Icon className="h-4.5 w-4.5" />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-slate-800 px-5 py-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-slate-200">
-            {initials}
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-60 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center gap-2.5 px-5 py-6">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+            <svg className="h-4.5 w-4.5 text-white" viewBox="0 0 24 24" fill="none" strokeWidth={2}>
+              <path
+                d="M12 2.5l7.5 3.2v5.4c0 5-3.2 8.9-7.5 10.4-4.3-1.5-7.5-5.4-7.5-10.4V5.7L12 2.5z"
+                stroke="currentColor"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9 12.2l2.1 2.1L15.3 10"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-xs font-medium text-slate-200">{userEmail}</p>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="text-[11px] text-slate-500 transition hover:text-slate-300"
+          <span className="text-[15px] font-semibold tracking-tight text-white">
+            InvoiceGuard
+          </span>
+        </div>
+
+        <nav className="flex-1 space-y-1 px-3">
+          {NAV_ITEMS.map((item) => {
+            const active =
+              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  active
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                }`}
               >
-                Log out
-              </button>
-            </form>
+                <Icon className="h-4.5 w-4.5" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-slate-800 px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-slate-200">
+              {initials}
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-xs font-medium text-slate-200">{userEmail}</p>
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  className="text-[11px] text-slate-500 transition hover:text-slate-300"
+                >
+                  Log out
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
