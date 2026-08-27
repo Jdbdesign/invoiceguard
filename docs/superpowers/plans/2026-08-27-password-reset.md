@@ -47,7 +47,7 @@ Do not merge to master or deploy until reviewed and approved.
 - Follow existing conventions exactly: route handlers use `NextResponse.json(...)`, unauthenticated routes (this entire feature — reset happens before login) skip the `auth()` check that protected routes use, Tailwind utility classes matching `login/page.tsx` and `signup/page.tsx` exactly (same card/input/button classes, same header logo SVG), `@/` path alias to `src/`.
 - Password rule: reuse the exact `MIN_PASSWORD_LENGTH = 8` constant pattern from `src/app/api/signup/route.ts` and the same `bcrypt.hash(password, 10)` call.
 - No test framework installed. Verification per task is `npx tsc --noEmit` plus the manual curl/browser steps listed in each task. Task 2's library-level verification uses a throwaway, uncommitted `tsx` script against a uniquely-named test user that it deletes in a `finally` block — this is the **shared production database**, so any verification script MUST clean up the rows it creates.
-- The seeded dev account (`dev@invoiceguard.local` / `dev-only-password`, from `prisma/seed.ts`) is safe to use for full end-to-end reset-flow testing in Task 9. Since that test changes its password, re-run `npm run db:seed` afterward to restore it to the known seed state.
+- The seeded dev account (`dev@invoiceguard.local` / `dev-only-password`, from `prisma/seed.ts`) is safe to use for full end-to-end reset-flow testing in Tasks 5/7/9. **Never run `npm run db:seed` in this worktree, under any circumstances.** It does `deleteMany()` across ALL `Client`/`Invoice`/`PaymentPlan`/`Installment`/`ActivityLog`/`Settings` rows for EVERY user in the database — this is the same shared production database confirmed to hold real pilot-tester data (multiple real accounts beyond the dev seed user), so running it would destroy real production data, not just reset a test fixture. Since testing changes the dev account's password, each restore step below instead runs a small throwaway script that updates only that one user's `passwordHash` by unique email — never the seed script.
 - `RESEND_API_KEY` is empty in `.env` right now. Every task through Task 9 must pass without it. Task 10 is the only task that needs it — do not ask the user for it until Task 9 is done; when you reach Task 10, stop and ask.
 
 ---
@@ -558,11 +558,29 @@ curl -s -X POST http://localhost:3000/api/reset-password \
 
 Expected: `400 {"error":"This reset link is invalid or has expired."}` — proves single-use.
 
-Restore the seed account's known password before moving on:
+Restore the dev account's known password before moving on — **do NOT run `npm run db:seed`** (see Global Constraints: it wipes ALL clients/invoices/payment plans/installments/activity logs across every user in this shared database, not just seed data). Instead, restore only that one row:
 
 ```bash
-npm run db:seed
+cat > restore-dev-password.ts <<'EOF'
+import "dotenv/config";
+import bcrypt from "bcryptjs";
+import { prisma } from "./src/lib/db";
+
+async function main() {
+  await prisma.user.update({
+    where: { email: "dev@invoiceguard.local" },
+    data: { passwordHash: await bcrypt.hash("dev-only-password", 10) },
+  });
+  console.log("restored dev@invoiceguard.local password");
+}
+
+main().finally(() => prisma.$disconnect());
+EOF
+npx tsx restore-dev-password.ts
+rm restore-dev-password.ts
 ```
+
+Expected: prints `restored dev@invoiceguard.local password`, and the script file is deleted afterward (not committed).
 
 - [ ] **Step 3: Commit**
 
@@ -878,10 +896,26 @@ function ResetPasswordForm() {
 
 With `npm run dev` running, `POST` to `/api/forgot-password` for `dev@invoiceguard.local` (via the `/forgot-password` page from Task 6), copy the token out of the server log's reset URL, and visit `http://localhost:3000/reset-password?token=<token>` directly. Expected: form renders (token valid), mismatched confirm-password shows the inline error and disables submit, entering matching 8+ char passwords and submitting shows "Your password has been reset." Then visit the same URL again (same token) — expected: "This reset link is invalid or has expired." (single-use). Visit `http://localhost:3000/reset-password` with no token — expected: "This reset link is invalid or has expired." immediately.
 
-Restore seed state:
+Restore the dev account's known password — **do NOT run `npm run db:seed`** (see Global Constraints: it wipes ALL clients/invoices/payment plans/installments/activity logs across every user in this shared database, not just seed data). Instead, restore only that one row:
 
 ```bash
-npm run db:seed
+cat > restore-dev-password.ts <<'EOF'
+import "dotenv/config";
+import bcrypt from "bcryptjs";
+import { prisma } from "./src/lib/db";
+
+async function main() {
+  await prisma.user.update({
+    where: { email: "dev@invoiceguard.local" },
+    data: { passwordHash: await bcrypt.hash("dev-only-password", 10) },
+  });
+  console.log("restored dev@invoiceguard.local password");
+}
+
+main().finally(() => prisma.$disconnect());
+EOF
+npx tsx restore-dev-password.ts
+rm restore-dev-password.ts
 ```
 
 ```bash
@@ -960,10 +994,28 @@ With `npm run dev` running:
 5. Go to `/login`, sign in with `dev@invoiceguard.local` / `e2e-test-password-123` → succeeds, lands on the app.
 6. Sign out, go back to the same reset URL from step 3 → "This reset link is invalid or has expired." (proves single-use held even across a successful login).
 
-- [ ] **Step 2: Restore seed state**
+- [ ] **Step 2: Restore the dev account's password**
+
+**Do NOT run `npm run db:seed`** (see Global Constraints: it wipes ALL clients/invoices/payment plans/installments/activity logs across every user in this shared database, not just seed data). Instead, restore only that one row:
 
 ```bash
-npm run db:seed
+cat > restore-dev-password.ts <<'EOF'
+import "dotenv/config";
+import bcrypt from "bcryptjs";
+import { prisma } from "./src/lib/db";
+
+async function main() {
+  await prisma.user.update({
+    where: { email: "dev@invoiceguard.local" },
+    data: { passwordHash: await bcrypt.hash("dev-only-password", 10) },
+  });
+  console.log("restored dev@invoiceguard.local password");
+}
+
+main().finally(() => prisma.$disconnect());
+EOF
+npx tsx restore-dev-password.ts
+rm restore-dev-password.ts
 ```
 
 Expected: `dev@invoiceguard.local` / `dev-only-password` works again on `/login`.
