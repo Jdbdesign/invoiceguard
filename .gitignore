@@ -42,6 +42,9 @@ backup-*.json
 # vercel
 .vercel
 
+# claude code worktrees (never commit worktree contents into the repo)
+.claude/worktrees/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
