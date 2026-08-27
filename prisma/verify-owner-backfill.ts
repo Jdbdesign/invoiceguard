@@ -7,8 +7,10 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const totalClients = await prisma.client.count();
+  // @ts-expect-error — intentionally querying the pre-migration nullable ownerId state; this script only runs before the NOT NULL migration is applied.
   const orphanedClients = await prisma.client.count({ where: { ownerId: null } });
   const totalSettings = await prisma.settings.count();
+  // @ts-expect-error — intentionally querying the pre-migration nullable ownerId state; this script only runs before the NOT NULL migration is applied.
   const orphanedSettings = await prisma.settings.count({ where: { ownerId: null } });
 
   const sample = await prisma.client.findMany({

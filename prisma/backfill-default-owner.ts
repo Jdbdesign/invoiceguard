@@ -30,12 +30,14 @@ async function main() {
   }
 
   const clientResult = await prisma.client.updateMany({
+    // @ts-expect-error — intentionally querying the pre-migration nullable ownerId state; this script only runs before the NOT NULL migration is applied.
     where: { ownerId: null },
     data: { ownerId: user.id },
   });
   console.log(`Backfilled ownerId on ${clientResult.count} Client row(s)`);
 
   const ownedSettings = await prisma.settings.findUnique({ where: { ownerId: user.id } });
+  // @ts-expect-error — intentionally querying the pre-migration nullable ownerId state; this script only runs before the NOT NULL migration is applied.
   const globalSettings = await prisma.settings.findMany({ where: { ownerId: null } });
 
   if (!ownedSettings) {
@@ -59,6 +61,7 @@ async function main() {
         `Migrating values from the first row and deleting all of them.`
       );
     }
+    // @ts-expect-error — intentionally querying the pre-migration nullable ownerId state; this script only runs before the NOT NULL migration is applied.
     await prisma.settings.deleteMany({ where: { ownerId: null } });
     console.log(`Removed ${globalSettings.length} old global Settings row(s)`);
   }
