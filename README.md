@@ -38,6 +38,8 @@ Set these wherever the app runs (local `.env`, Vercel Project Settings → Envir
 | `DATABASE_URL` | Postgres connection string (e.g. from Neon). Used by Prisma for both migrations and the runtime client. |
 | `ANTHROPIC_API_KEY` | Claude API key, used to draft reminder emails. |
 | `AUTH_SECRET` | Signing secret for Auth.js session JWTs. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Keep it private. |
+| `APP_BASE_URL` | Absolute base URL used to build password-reset links (e.g. `https://invoiceguard-eta.vercel.app`). Falls back to `http://localhost:3000` outside production; must be set explicitly in production or reset emails will fail to send (see `src/app/api/forgot-password/route.ts`). |
+| `RESEND_API_KEY` | API key for [Resend](https://resend.com), used to send password-reset emails. Until a custom sending domain is verified in Resend, the sender (`onboarding@resend.dev`) can only deliver to the Resend account's own email address. |
 
 After changing `DATABASE_URL`, run `npm run db:migrate` (or apply migrations however your deploy pipeline does it) and `npm run db:seed` if you need demo data.
 

@@ -12,8 +12,22 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
-  clients  Client[]
-  settings Settings?
+  clients             Client[]
+  settings            Settings?
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Client {

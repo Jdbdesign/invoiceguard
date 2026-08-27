@@ -107,6 +107,11 @@ function LoginForm() {
             placeholder="Enter password"
             autoComplete="current-password"
           />
+          <div className="mt-1.5 text-right">
+            <a href="/forgot-password" className="text-xs font-medium text-blue-400 hover:text-blue-300">
+              Forgot password?
+            </a>
+          </div>
 
           {error && <p className="mt-2.5 text-xs font-medium text-red-400">{error}</p>}
 
