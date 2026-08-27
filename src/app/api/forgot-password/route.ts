@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db";
 import { issuePasswordResetToken } from "@/lib/passwordReset";
 import { sendPasswordResetEmail } from "@/lib/email";
@@ -24,14 +24,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: GENERIC_MESSAGE });
   }
 
-  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.APP_BASE_URL
+    ?? (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
+  if (!baseUrl) {
+    console.error("APP_BASE_URL is not set — cannot build a reset link");
+    return NextResponse.json({ message: GENERIC_MESSAGE });
+  }
   const resetUrl = `${baseUrl}/reset-password?token=${result.rawToken}`;
 
   if (process.env.NODE_ENV !== "production") {
     console.log(`[dev] Password reset link for ${email}: ${resetUrl}`);
   }
 
-  await sendPasswordResetEmail(email, resetUrl);
+  after(() => sendPasswordResetEmail(email, resetUrl));
 
   return NextResponse.json({ message: GENERIC_MESSAGE });
 }

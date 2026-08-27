@@ -31,7 +31,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
     // unverified domain), but network-level failures (DNS, timeout) can still
     // throw. This path must never throw uncaught — forgot-password always
     // returns its generic response regardless of email delivery outcome.
-    console.error("Failed to send password reset email (network error):", err);
+    console.error("Failed to send password reset email:", err);
     return false;
   }
 }
