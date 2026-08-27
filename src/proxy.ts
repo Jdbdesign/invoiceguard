@@ -2,7 +2,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
 
-const PUBLIC_PATHS = new Set(["/login", "/signup", "/api/signup"]);
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/signup",
+  "/api/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/api/forgot-password",
+  "/api/reset-password",
+]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
