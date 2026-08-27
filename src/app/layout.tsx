@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description: "Collections agent for small business invoicing and payment plans.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"

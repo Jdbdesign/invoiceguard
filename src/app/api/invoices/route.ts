@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapInvoice } from "@/lib/mappers";
 import { fromIsoDate } from "@/lib/dateSerialization";
+import { auth } from "@/auth";
 
 export async function GET() {
-  const invoices = await prisma.invoice.findMany({ orderBy: { createdAt: "desc" } });
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const invoices = await prisma.invoice.findMany({
+    where: { client: { ownerId: session.user.id } },
+    orderBy: { createdAt: "desc" },
+  });
   return NextResponse.json(invoices.map(mapInvoice));
 }
 
@@ -20,6 +27,9 @@ async function generateInvoiceNumber(): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await request.json();
   const clientId = String(body.clientId ?? "");
   const amount = Number(body.amount);
@@ -30,7 +40,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid invoice input" }, { status: 400 });
   }
 
-  const client = await prisma.client.findUnique({ where: { id: clientId } });
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, ownerId: session.user.id },
+  });
   if (!client) {
     return NextResponse.json({ error: "client not found" }, { status: 404 });
   }

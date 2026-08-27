@@ -6,14 +6,26 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  clients  Client[]
+  settings Settings?
+}
+
 model Client {
   id        String   @id @default(cuid())
+  ownerId   String
   name      String
   email     String
   phone     String
   currency  String   @default("USD")
   createdAt DateTime @default(now())
 
+  owner        User          @relation(fields: [ownerId], references: [id])
   invoices     Invoice[]
   activityLogs ActivityLog[]
 }
@@ -72,7 +84,10 @@ model Installment {
 
 model Settings {
   id                   String @id @default(cuid())
+  ownerId              String @unique
   friendlyReminderDays Int    @default(3)
   firmReminderDays     Int    @default(15)
   finalNoticeDays      Int    @default(45)
+
+  owner User @relation(fields: [ownerId], references: [id])
 }

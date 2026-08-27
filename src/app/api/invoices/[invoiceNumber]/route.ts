@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapInvoice } from "@/lib/mappers";
 import { fromIsoDate } from "@/lib/dateSerialization";
+import { auth } from "@/auth";
 
 const EDITABLE_STATUSES = new Set(["unpaid", "partial", "paid"]);
 
@@ -9,6 +10,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
   const body = await request.json();
   const clientId = String(body.clientId ?? "");
@@ -28,15 +32,17 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid invoice input" }, { status: 400 });
   }
 
-  const existing = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const existing = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
     include: { paymentPlan: true },
   });
   if (!existing) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
   }
 
-  const client = await prisma.client.findUnique({ where: { id: clientId } });
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, ownerId: session.user.id },
+  });
   if (!client) {
     return NextResponse.json({ error: "client not found" }, { status: 404 });
   }
@@ -74,10 +80,13 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const invoice = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
     include: { paymentPlan: true },
   });
   if (!invoice) {

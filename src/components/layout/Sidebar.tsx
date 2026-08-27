@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { logoutAction } from "@/app/(app)/actions";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
@@ -10,8 +11,9 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export function Sidebar() {
+export function Sidebar({ userEmail }: { userEmail: string }) {
   const pathname = usePathname();
+  const initials = userEmail.slice(0, 2).toUpperCase() || "??";
 
   return (
     <aside className="flex h-full w-60 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-900">
@@ -61,11 +63,18 @@ export function Sidebar() {
       <div className="border-t border-slate-800 px-5 py-4">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-slate-200">
-            JS
+            {initials}
           </div>
-          <div className="leading-tight">
-            <p className="text-xs font-medium text-slate-200">Jacob Solayinka</p>
-            <p className="text-[11px] text-slate-500">Owner</p>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-xs font-medium text-slate-200">{userEmail}</p>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="text-[11px] text-slate-500 transition hover:text-slate-300"
+              >
+                Log out
+              </button>
+            </form>
           </div>
         </div>
       </div>

@@ -1,46 +1,57 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
-  );
-}
-
-function LoginForm() {
+export default function SignupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
 
+    if (password !== confirmPassword) {
+      setConfirmTouched(true);
+      setError("Passwords don't match.");
+      return;
+    }
+
+    setSubmitting(true);
     try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong. Try again.");
+        setSubmitting(false);
+        return;
+      }
+
       const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
-
       if (result?.error) {
-        setError("Incorrect email or password. Try again.");
+        setError("Account created — sign in from the login page.");
         setSubmitting(false);
         return;
       }
-
-      const redirect = searchParams.get("redirect") || "/";
-      router.push(redirect);
+      router.push("/");
       router.refresh();
     } catch {
       setError("Something went wrong. Try again.");
@@ -85,22 +96,37 @@ function LoginForm() {
           />
 
           <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">Password</label>
-          <PasswordInput value={password} onChange={setPassword} placeholder="Enter password" />
+          <PasswordInput value={password} onChange={setPassword} placeholder="At least 8 characters" />
+          <PasswordStrengthMeter password={password} />
+
+          <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">
+            Confirm password
+          </label>
+          <PasswordInput
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            onBlur={() => setConfirmTouched(true)}
+            placeholder="Re-enter password"
+            aria-invalid={confirmTouched && passwordsMismatch}
+          />
+          {confirmTouched && passwordsMismatch && (
+            <p className="mt-1.5 text-xs font-medium text-rose-400">Passwords don&apos;t match.</p>
+          )}
 
           {error && <p className="mt-2.5 text-xs font-medium text-red-400">{error}</p>}
 
           <button
             type="submit"
-            disabled={submitting || !email || password.length === 0}
+            disabled={submitting || !email || password.length === 0 || passwordsMismatch}
             className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "Signing in…" : "Sign in"}
+            {submitting ? "Creating account…" : "Create account"}
           </button>
 
           <p className="mt-4 text-center text-xs text-slate-500">
-            Don&apos;t have an account?{" "}
-            <a href="/signup" className="font-medium text-blue-400 hover:text-blue-300">
-              Sign up
+            Already have an account?{" "}
+            <a href="/login" className="font-medium text-blue-400 hover:text-blue-300">
+              Log in
             </a>
           </p>
         </form>

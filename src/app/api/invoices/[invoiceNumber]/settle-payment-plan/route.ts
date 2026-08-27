@@ -3,15 +3,19 @@ import { prisma } from "@/lib/db";
 import { mapActivity, mapInstallment, mapInvoice } from "@/lib/mappers";
 import { fromIsoDate } from "@/lib/dateSerialization";
 import { formatCurrency, todayIso } from "@/lib/utils";
+import { auth } from "@/auth";
 
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const invoice = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
     include: {
       client: true,
       paymentPlan: { include: { installments: true } },
@@ -59,7 +63,7 @@ export async function POST(
         clientId: invoice.clientId,
         invoiceId: invoice.id,
         type: "payment_received",
-        message: `Remaining balance of ${amountLabel} (${countLabel}) paid in full — settled by Jacob Solayinka.`,
+        message: `Remaining balance of ${amountLabel} (${countLabel}) paid in full — settled by ${session.user.email}.`,
       },
       include: { invoice: true },
     }),

@@ -1,9 +1,13 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
+
+const SEED_OWNER_EMAIL = "dev@invoiceguard.local";
+const SEED_OWNER_PASSWORD = "dev-only-password";
 
 const clients = [
   {
@@ -288,9 +292,18 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.client.deleteMany();
   await prisma.settings.deleteMany();
+  await prisma.user.deleteMany({ where: { email: SEED_OWNER_EMAIL } });
+
+  const seedOwner = await prisma.user.create({
+    data: {
+      email: SEED_OWNER_EMAIL,
+      passwordHash: await bcrypt.hash(SEED_OWNER_PASSWORD, 10),
+    },
+  });
+  console.log(`Created seed owner ${SEED_OWNER_EMAIL} (dev-only account, password: ${SEED_OWNER_PASSWORD})`);
 
   for (const c of clients) {
-    await prisma.client.create({ data: c });
+    await prisma.client.create({ data: { ...c, ownerId: seedOwner.id } });
   }
 
   for (const inv of invoices) {
@@ -347,6 +360,7 @@ async function main() {
   await prisma.settings.create({
     data: {
       id: "settings",
+      ownerId: seedOwner.id,
       friendlyReminderDays: 3,
       firmReminderDays: 15,
       finalNoticeDays: 45,

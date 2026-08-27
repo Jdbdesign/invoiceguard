@@ -10,6 +10,9 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:backup": "tsx prisma/backup-before-auth-migration.ts",
+    "db:backfill-owner": "tsx prisma/backfill-default-owner.ts",
+    "db:verify-backfill": "tsx prisma/verify-owner-backfill.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
@@ -19,15 +22,18 @@
     "@anthropic-ai/sdk": "^0.120.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "bcryptjs": "^2.4.3",
     "pg": "^8.16.3",
     "dotenv": "^17.4.2",
     "next": "16.3.2",
+    "next-auth": "5.0.0-beta.32",
     "prisma": "^7.9.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.15.2",
     "@types/react": "^19",

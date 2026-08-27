@@ -2,15 +2,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapActivity, mapInvoice } from "@/lib/mappers";
 import { formatCurrency } from "@/lib/utils";
+import { auth } from "@/auth";
 
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const invoice = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
     include: { client: true, paymentPlan: true },
   });
   if (!invoice) {

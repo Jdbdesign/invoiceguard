@@ -6,15 +6,19 @@ import { determineReminderStage } from "@/lib/reminderStage";
 import { draftReminderEmail } from "@/lib/claude";
 import { mapSettings } from "@/lib/mappers";
 import { getOrCreateSettings } from "@/lib/settings";
+import { auth } from "@/auth";
 
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const invoice = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
     include: { client: true },
   });
   if (!invoice) {
@@ -27,7 +31,7 @@ export async function POST(
     );
   }
 
-  const settingsRow = await getOrCreateSettings();
+  const settingsRow = await getOrCreateSettings(session.user.id);
   const schedule = mapSettings(settingsRow);
   const dueDateIso = toIsoDate(invoice.dueDate);
   const daysOverdue = daysBetween(dueDateIso, todayIso());

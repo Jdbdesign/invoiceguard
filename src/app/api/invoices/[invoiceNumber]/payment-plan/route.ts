@@ -9,6 +9,7 @@ import {
   isValidFrequency,
   isValidInstallmentCount,
 } from "@/lib/paymentPlan";
+import { auth } from "@/auth";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -37,6 +38,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { invoiceNumber } = await params;
   let body: PaymentPlanRequestBody;
   try {
@@ -60,8 +64,8 @@ export async function POST(
     );
   }
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { invoiceNumber },
+  const invoice = await prisma.invoice.findFirst({
+    where: { invoiceNumber, client: { ownerId: session.user.id } },
     include: { client: true, paymentPlan: true },
   });
   if (!invoice) {

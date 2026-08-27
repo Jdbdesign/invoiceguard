@@ -36,6 +36,9 @@ yarn-error.log*
 # stale local sqlite artifact (project now runs on Postgres)
 dev.db
 
+# auth-migration backups (contain full production data — never commit)
+backup-*.json
+
 # vercel
 .vercel
 
