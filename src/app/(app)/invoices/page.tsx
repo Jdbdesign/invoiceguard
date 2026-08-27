@@ -117,7 +117,7 @@ export default function InvoicesPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <table className="w-full text-left text-sm">
+        <table className="hidden w-full text-left text-sm md:table">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-5 py-3">Invoice</th>
@@ -193,6 +193,64 @@ export default function InvoicesPage() {
             )}
           </tbody>
         </table>
+
+        <div className="divide-y divide-slate-100 md:hidden">
+          {rows.map((invoice) => {
+            const client = getClientById(clients, invoice.clientId);
+            const badge = invoiceStatusLabel(invoice);
+            const overdue = getDaysOverdue(invoice);
+            return (
+              <div key={invoice.id} className="px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-900">{invoice.id}</p>
+                    <Link
+                      href={`/clients/${invoice.clientId}`}
+                      className="text-sm text-slate-600 hover:text-blue-600"
+                    >
+                      {client?.name}
+                    </Link>
+                  </div>
+                  <RowActionsMenu
+                    onEdit={() => setEditingInvoice(invoice)}
+                    onDelete={() => setDeletingInvoice(invoice)}
+                    onCreatePaymentPlan={
+                      invoice.status !== "paid" &&
+                      !invoiceHasPaymentPlan(invoice.id, paymentPlans)
+                        ? () => setCreatingPlanFor(invoice)
+                        : undefined
+                    }
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium tabular-nums text-slate-900">
+                    {formatCurrency(getInvoiceBalance(invoice), client?.currency)}
+                  </span>
+                  <Badge variant={badge.variant}>{badge.label}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Due {formatDate(invoice.dueDate)}
+                  {invoice.status !== "paid" && overdue !== null && overdue > 0 && (
+                    <span className="ml-1.5 text-slate-400">· {overdue}d overdue</span>
+                  )}
+                </p>
+                {invoice.status !== "paid" && (
+                  <button
+                    onClick={() => setDraftingReminderFor(invoice.id)}
+                    className="mt-3 w-full rounded-md border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    Draft reminder
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {rows.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-slate-500">
+              No invoices match this filter.
+            </div>
+          )}
+        </div>
       </Card>
 
       <InvoiceFormModal open={modalOpen} onClose={() => setModalOpen(false)} />
