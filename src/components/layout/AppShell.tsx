@@ -13,7 +13,7 @@ export function AppShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-dvh overflow-hidden bg-slate-50">
       <Sidebar
         userEmail={userEmail}
         mobileOpen={mobileNavOpen}
@@ -41,7 +41,7 @@ export function AppShell({
           </span>
         </header>
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-8 py-8">{children}</div>
+          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">{children}</div>
         </main>
       </div>
     </div>

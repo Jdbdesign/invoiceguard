@@ -117,7 +117,7 @@ export default function InvoicesPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <table className="hidden w-full text-left text-sm md:table">
+        <table className="hidden w-full text-left text-sm lg:table">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-5 py-3">Invoice</th>
@@ -194,7 +194,7 @@ export default function InvoicesPage() {
           </tbody>
         </table>
 
-        <div className="divide-y divide-slate-100 md:hidden">
+        <div className="divide-y divide-slate-100 lg:hidden">
           {rows.map((invoice) => {
             const client = getClientById(clients, invoice.clientId);
             const badge = invoiceStatusLabel(invoice);
