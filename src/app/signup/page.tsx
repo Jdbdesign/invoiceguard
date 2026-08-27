@@ -3,20 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (password !== confirmPassword) {
+      setConfirmTouched(true);
       setError("Passwords don't match.");
       return;
     }
@@ -90,30 +96,28 @@ export default function SignupPage() {
           />
 
           <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
+          <PasswordInput value={password} onChange={setPassword} placeholder="At least 8 characters" />
+          <PasswordStrengthMeter password={password} />
 
           <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">
             Confirm password
           </label>
-          <input
-            type="password"
+          <PasswordInput
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={setConfirmPassword}
+            onBlur={() => setConfirmTouched(true)}
             placeholder="Re-enter password"
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            aria-invalid={confirmTouched && passwordsMismatch}
           />
+          {confirmTouched && passwordsMismatch && (
+            <p className="mt-1.5 text-xs font-medium text-rose-400">Passwords don&apos;t match.</p>
+          )}
 
           {error && <p className="mt-2.5 text-xs font-medium text-red-400">{error}</p>}
 
           <button
             type="submit"
-            disabled={submitting || !email || password.length === 0}
+            disabled={submitting || !email || password.length === 0 || passwordsMismatch}
             className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? "Creating account…" : "Create account"}
