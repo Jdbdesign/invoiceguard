@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -20,16 +20,28 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Starts read-only so Chrome's silent fill-on-page-load skips this field —
+  // flips to editable the instant the user focuses it (see PasswordInput.tsx
+  // for the matching pattern on the password field).
+  const [emailLocked, setEmailLocked] = useState(true);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
 
+    // Fall back to the live DOM value in case state ever lags behind what's
+    // actually in the inputs — the submitted credentials should never trust
+    // stale React state over what's really there.
+    const emailValue = emailRef.current?.value || email;
+    const passwordValue = passwordRef.current?.value || password;
+
     try {
       const result = await signIn("credentials", {
-        email,
-        password,
+        email: emailValue,
+        password: passwordValue,
         redirect: false,
       });
 
@@ -76,16 +88,25 @@ function LoginForm() {
         >
           <label className="mb-1.5 block text-xs font-medium text-slate-400">Email</label>
           <input
+            ref={emailRef}
             type="email"
-            autoFocus
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onFocus={() => setEmailLocked(false)}
+            readOnly={emailLocked}
             placeholder="you@company.com"
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
 
           <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">Password</label>
-          <PasswordInput value={password} onChange={setPassword} placeholder="Enter password" />
+          <PasswordInput
+            ref={passwordRef}
+            value={password}
+            onChange={setPassword}
+            placeholder="Enter password"
+            autoComplete="current-password"
+          />
 
           {error && <p className="mt-2.5 text-xs font-medium text-red-400">{error}</p>}
 

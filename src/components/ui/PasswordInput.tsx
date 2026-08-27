@@ -1,31 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 
-export function PasswordInput({
-  value,
-  onChange,
-  onBlur,
-  placeholder,
-  autoFocus,
-  "aria-invalid": ariaInvalid,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  autoFocus?: boolean;
-  "aria-invalid"?: boolean;
-}) {
+export const PasswordInput = forwardRef<
+  HTMLInputElement,
+  {
+    value: string;
+    onChange: (value: string) => void;
+    onBlur?: () => void;
+    placeholder?: string;
+    autoFocus?: boolean;
+    autoComplete?: string;
+    "aria-invalid"?: boolean;
+  }
+>(function PasswordInput(
+  { value, onChange, onBlur, placeholder, autoFocus, autoComplete, "aria-invalid": ariaInvalid },
+  ref
+) {
   const [show, setShow] = useState(false);
+  // Starts read-only so Chrome's silent fill-on-page-load skips this field
+  // (browsers don't autofill readonly inputs on load) — flips to editable
+  // the instant the user focuses it, which is before any dropdown-suggestion
+  // fill or manual typing can happen, so that flow is unaffected.
+  const [locked, setLocked] = useState(true);
 
   return (
     <div className="relative">
       <input
+        ref={ref}
         type={show ? "text" : "password"}
         autoFocus={autoFocus}
+        autoComplete={autoComplete}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setLocked(false)}
+        readOnly={locked}
         onBlur={onBlur}
         placeholder={placeholder}
         aria-invalid={ariaInvalid}
@@ -67,4 +76,4 @@ export function PasswordInput({
       </button>
     </div>
   );
-}
+});
