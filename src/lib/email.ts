@@ -1,11 +1,15 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM_ADDRESS = "InvoiceGuard <onboarding@resend.dev>";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<boolean> {
   try {
+    // Constructed lazily (not at module scope) because the Resend SDK throws
+    // synchronously in its constructor when the API key is missing/empty —
+    // that throw must land inside this try/catch, not at import time, or it
+    // takes down every route that imports this module before any request
+    // handler code runs.
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
       from: FROM_ADDRESS,
       to: [to],
