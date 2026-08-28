@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 
 const FROM_ADDRESS = "InvoiceGuard <onboarding@resend.dev>";
+const REMINDER_FROM_ADDRESS =
+  process.env.REMINDER_FROM_ADDRESS ?? "InvoiceGuard <onboarding@resend.dev>";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<boolean> {
   try {
@@ -32,6 +34,42 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
     // throw. This path must never throw uncaught — forgot-password always
     // returns its generic response regardless of email delivery outcome.
     console.error("Failed to send password reset email:", err);
+    return false;
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export async function sendReminderEmail(
+  to: string,
+  subject: string,
+  body: string
+): Promise<boolean> {
+  try {
+    // See sendPasswordResetEmail above for why the client is constructed
+    // lazily inside the try/catch rather than at module scope.
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: REMINDER_FROM_ADDRESS,
+      to: [to],
+      subject,
+      html: `<p>${escapeHtml(body).replace(/\n/g, "<br>")}</p>`,
+    });
+
+    if (error) {
+      console.error("Failed to send reminder email:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to send reminder email:", err);
     return false;
   }
 }

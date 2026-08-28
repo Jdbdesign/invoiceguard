@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db";
 import { mapActivity } from "@/lib/mappers";
 import type { ReminderStage } from "@/lib/types";
 import { auth } from "@/auth";
+import { sendReminderEmail } from "@/lib/email";
 
 const VALID_STAGES: ReminderStage[] = ["friendly", "firm", "final"];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isReminderStage(value: unknown): value is ReminderStage {
   return typeof value === "string" && (VALID_STAGES as string[]).includes(value);
@@ -45,6 +47,7 @@ export async function POST(
 
   const invoice = await prisma.invoice.findFirst({
     where: { invoiceNumber, client: { ownerId: session.user.id } },
+    include: { client: true },
   });
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
@@ -53,6 +56,21 @@ export async function POST(
     return NextResponse.json(
       { error: "invoice is already paid" },
       { status: 400 }
+    );
+  }
+
+  if (!EMAIL_RE.test(invoice.client.email)) {
+    return NextResponse.json(
+      { error: "client has no valid email on file" },
+      { status: 400 }
+    );
+  }
+
+  const sent = await sendReminderEmail(invoice.client.email, subject, emailBody);
+  if (!sent) {
+    return NextResponse.json(
+      { error: "failed to send reminder email — please try again" },
+      { status: 502 }
     );
   }
 
