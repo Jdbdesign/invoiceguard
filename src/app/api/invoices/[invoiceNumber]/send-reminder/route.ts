@@ -66,7 +66,14 @@ export async function POST(
     );
   }
 
-  const sent = await sendReminderEmail(invoice.client.email, subject, emailBody);
+  const sent = await sendReminderEmail(
+    invoice.client.email,
+    subject,
+    emailBody,
+    invoice.invoiceNumber,
+    invoice.balance,
+    invoice.client.currency
+  );
   if (!sent) {
     return NextResponse.json(
       { error: "failed to send reminder email — please try again" },
