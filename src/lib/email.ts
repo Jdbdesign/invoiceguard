@@ -1,4 +1,7 @@
 import { Resend } from "resend";
+import { render } from "react-email";
+import { ReminderEmail } from "@/emails/ReminderEmail";
+import { formatCurrency } from "@/lib/utils";
 
 const FROM_ADDRESS = "InvoiceGuard <onboarding@resend.dev>";
 const REMINDER_FROM_ADDRESS =
@@ -38,21 +41,22 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 export async function sendReminderEmail(
   to: string,
   subject: string,
-  body: string
+  body: string,
+  invoiceNumber: string,
+  balance: number,
+  currency: string
 ): Promise<boolean> {
   try {
+    const amountDue = formatCurrency(balance, currency);
+    const element = ReminderEmail({ invoiceNumber, amountDue, body });
+    const [html, text] = await Promise.all([
+      render(element),
+      render(element, { plainText: true }),
+    ]);
+
     // See sendPasswordResetEmail above for why the client is constructed
     // lazily inside the try/catch rather than at module scope.
     const resend = new Resend(process.env.RESEND_API_KEY);
@@ -60,7 +64,8 @@ export async function sendReminderEmail(
       from: REMINDER_FROM_ADDRESS,
       to: [to],
       subject,
-      html: `<p>${escapeHtml(body).replace(/\n/g, "<br>")}</p>`,
+      html,
+      text,
     });
 
     if (error) {
