@@ -17,7 +17,7 @@ export function getTemplatePreview(
     return {
       subject: "Action needed: invoice INV-1042 is past due",
       tone: "Direct and clear — states the amount and asks for a plan.",
-      body: `Hello,\n\nInvoice INV-1042 for $2,450.00 is now ${days} days past due. We haven't received payment or a response to our earlier reminder.\n\nPlease submit payment as soon as possible, or reply to this email if you'd like to set up a payment plan.\n\nView invoice: [Pay invoice]\n\nBest,\nThe InvoiceGuard team`,
+      body: `Hello,\n\nInvoice INV-1042 for $2,450.00 is now ${days} days past due. We haven't received payment or a response to our earlier reminder.\n\nPlease submit payment as soon as possible, or get in touch with us if you'd like to set up a payment plan.\n\nView invoice: [Pay invoice]\n\nBest,\nThe InvoiceGuard team`,
     };
   }
   return {

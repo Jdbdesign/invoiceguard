@@ -51,6 +51,8 @@ Details:
 
 Important: the client's currency is ${input.currency}. Write every amount in the email exactly as formatted above (e.g. "${amount}") — use that currency's correct symbol/format, never a "$" sign unless the currency is actually USD.
 
+Important: do NOT invite the client to reply to this email for questions, clarification, or to arrange a payment plan (e.g. "just reply to this email" or "reply to let us know"). This inbox is not monitored. If the draft needs to reference getting in touch, phrase it generally (e.g. "get in touch with us") without implying email reply.
+
 Respond with exactly this format and nothing else — no preamble, no markdown:
 SUBJECT: <subject line>
 BODY:
