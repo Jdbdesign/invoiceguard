@@ -95,7 +95,7 @@ function ResetPasswordForm() {
               />
             </svg>
           </div>
-          <span className="text-lg font-semibold tracking-tight text-white">InvoiceGuard</span>
+          <span className="text-lg font-semibold tracking-tight text-white">Remitrak</span>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-6 shadow-xl shadow-black/20">

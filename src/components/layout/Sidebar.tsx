@@ -53,7 +53,7 @@ export function Sidebar({
             </svg>
           </div>
           <span className="text-[15px] font-semibold tracking-tight text-white">
-            InvoiceGuard
+            Remitrak
           </span>
         </div>
 

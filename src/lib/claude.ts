@@ -38,7 +38,7 @@ export async function draftReminderEmail(
 ): Promise<DraftedReminder> {
   const amount = formatCurrency(input.balance, input.currency);
 
-  const prompt = `Draft a ${input.stage} payment reminder email from InvoiceGuard, an accounts-receivable collections tool, to a client on behalf of the business they owe money to.
+  const prompt = `Draft a ${input.stage} payment reminder email from Remitrak, an accounts-receivable collections tool, to a client on behalf of the business they owe money to.
 
 Tone: ${STAGE_TONE[input.stage]}
 
@@ -60,7 +60,7 @@ Structure the body in this exact order:
 2. One opening paragraph giving context — mention the invoice and its status in prose.
 3. Then, as its own paragraph by itself — nothing else on that line, no leading or trailing text — exactly this line: "Here are the details for your reference:"
 4. One or more further paragraphs with the rest of the message (the ask, next steps, closing).
-5. Sign off as "The InvoiceGuard team".
+5. Sign off as "The Remitrak team".
 Separate every paragraph, including the "Here are the details for your reference:" line, with a blank line so each is its own paragraph.
 
 Respond with exactly this format and nothing else — no preamble, no markdown:

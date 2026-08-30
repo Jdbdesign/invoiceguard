@@ -3,9 +3,9 @@ import { render } from "react-email";
 import { ReminderEmail } from "@/emails/ReminderEmail";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-const FROM_ADDRESS = "InvoiceGuard <onboarding@resend.dev>";
+const FROM_ADDRESS = "Remitrak <onboarding@resend.dev>";
 const REMINDER_FROM_ADDRESS =
-  process.env.REMINDER_FROM_ADDRESS ?? "InvoiceGuard <onboarding@resend.dev>";
+  process.env.REMINDER_FROM_ADDRESS ?? "Remitrak <onboarding@resend.dev>";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<boolean> {
   try {
@@ -18,9 +18,9 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
     const { error } = await resend.emails.send({
       from: FROM_ADDRESS,
       to: [to],
-      subject: "Reset your InvoiceGuard password",
+      subject: "Reset your Remitrak password",
       html: `
-        <p>We received a request to reset your InvoiceGuard password.</p>
+        <p>We received a request to reset your Remitrak password.</p>
         <p><a href="${resetUrl}">Click here to set a new password</a>. This link expires in 45 minutes.</p>
         <p>If you didn't request this, you can safely ignore this email.</p>
       `,

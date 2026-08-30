@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "InvoiceGuard — AR/AP Collections",
+  title: "Remitrak — AR/AP Collections",
   description: "Collections agent for small business invoicing and payment plans.",
 };
 

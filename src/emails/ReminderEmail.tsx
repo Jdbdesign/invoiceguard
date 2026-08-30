@@ -71,7 +71,7 @@ export default function ReminderEmail({
           <Container className="mx-auto w-full max-w-[600px] px-4 py-10">
             <Section className="pb-6">
               <Text className="m-0 text-[15px] font-semibold tracking-tight text-slate-900">
-                InvoiceGuard
+                Remitrak
               </Text>
             </Section>
 
@@ -114,10 +114,10 @@ export default function ReminderEmail({
 
             <Section className="pt-6 text-center">
               <Text className="m-0 mb-1 text-xs text-slate-400">
-                This is an automated payment reminder from InvoiceGuard.
+                This is an automated payment reminder from Remitrak.
               </Text>
               <Text className="m-0 text-xs text-slate-400">
-                © {new Date().getFullYear()} InvoiceGuard
+                © {new Date().getFullYear()} Remitrak
               </Text>
             </Section>
           </Container>
@@ -142,7 +142,7 @@ If you've already sent payment, please disregard this note. Otherwise, you can s
 
 Thanks for your business — let us know if there's anything we can help with.
 
-The InvoiceGuard team`,
+The Remitrak team`,
 } satisfies ReminderEmailProps;
 
 export { ReminderEmail };
