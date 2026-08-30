@@ -91,7 +91,7 @@ export default function SignupPage() {
               />
             </svg>
           </div>
-          <span className="text-lg font-semibold tracking-tight text-white">InvoiceGuard</span>
+          <span className="text-lg font-semibold tracking-tight text-white">Remitrak</span>
         </div>
 
         <form

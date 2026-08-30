@@ -37,7 +37,7 @@ export function AppShell({
             </svg>
           </button>
           <span className="text-[15px] font-semibold tracking-tight text-slate-900">
-            InvoiceGuard
+            Remitrak
           </span>
         </header>
         <main className="flex-1 overflow-y-auto">
