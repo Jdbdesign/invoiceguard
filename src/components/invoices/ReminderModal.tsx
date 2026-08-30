@@ -133,13 +133,23 @@ export function ReminderModal({
           status === "sent" ||
           status === "send-error") && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="mb-3 border-b border-slate-100 pb-3 text-sm font-medium text-slate-900">
-                {draft.subject}
-              </p>
-              <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700">
-                {draft.body}
-              </pre>
+            <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+              <input
+                type="text"
+                value={draft.subject}
+                onChange={(e) =>
+                  setDraft({ ...draft, subject: e.target.value })
+                }
+                disabled={busy}
+                className="w-full border-b border-slate-100 pb-3 text-sm font-medium text-slate-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <textarea
+                value={draft.body}
+                onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+                disabled={busy}
+                rows={10}
+                className="w-full resize-y font-sans text-sm text-slate-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              />
             </div>
 
             {status === "send-error" && (

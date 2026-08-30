@@ -4,6 +4,7 @@ import { mapActivity } from "@/lib/mappers";
 import type { ReminderStage } from "@/lib/types";
 import { auth } from "@/auth";
 import { sendReminderEmail } from "@/lib/email";
+import { toIsoDate } from "@/lib/dateSerialization";
 
 const VALID_STAGES: ReminderStage[] = ["friendly", "firm", "final"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -71,8 +72,10 @@ export async function POST(
     subject,
     emailBody,
     invoice.invoiceNumber,
+    invoice.description,
     invoice.balance,
-    invoice.client.currency
+    invoice.client.currency,
+    toIsoDate(invoice.dueDate)
   );
   if (!sent) {
     return NextResponse.json(
