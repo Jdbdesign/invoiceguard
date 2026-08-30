@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { render } from "react-email";
 import { ReminderEmail } from "@/emails/ReminderEmail";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 const FROM_ADDRESS = "InvoiceGuard <onboarding@resend.dev>";
 const REMINDER_FROM_ADDRESS =
@@ -46,12 +46,21 @@ export async function sendReminderEmail(
   subject: string,
   body: string,
   invoiceNumber: string,
+  description: string,
   balance: number,
-  currency: string
+  currency: string,
+  dueDateIso: string
 ): Promise<boolean> {
   try {
     const amountDue = formatCurrency(balance, currency);
-    const element = ReminderEmail({ invoiceNumber, amountDue, body });
+    const dueDate = formatDate(dueDateIso);
+    const element = ReminderEmail({
+      invoiceNumber,
+      description,
+      amountDue,
+      dueDate,
+      body,
+    });
     const [html, text] = await Promise.all([
       render(element),
       render(element, { plainText: true }),

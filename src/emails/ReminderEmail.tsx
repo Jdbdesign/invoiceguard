@@ -16,7 +16,9 @@ const FONT_STACK =
 
 interface ReminderEmailProps {
   invoiceNumber: string;
+  description: string;
   amountDue: string;
+  dueDate: string;
   body: string;
 }
 
@@ -27,12 +29,33 @@ function splitParagraphs(body: string): string[] {
     .filter(Boolean);
 }
 
+const DETAILS_MARKER = /^here are the details for your reference:?$/i;
+
+function splitAtDetailsMarker(paragraphs: string[]): {
+  before: string[];
+  after: string[];
+} {
+  const markerIndex = paragraphs.findIndex((paragraph) =>
+    DETAILS_MARKER.test(paragraph)
+  );
+  // Fall back to right after the opening paragraph if the AI-drafted body
+  // ever omits the exact marker line, so the invoice details never get lost.
+  const insertAfter = markerIndex !== -1 ? markerIndex : 0;
+  return {
+    before: paragraphs.slice(0, insertAfter + 1),
+    after: paragraphs.slice(insertAfter + 1),
+  };
+}
+
 export default function ReminderEmail({
   invoiceNumber,
+  description,
   amountDue,
+  dueDate,
   body,
 }: ReminderEmailProps) {
   const paragraphs = splitParagraphs(body);
+  const { before, after } = splitAtDetailsMarker(paragraphs);
 
   return (
     <Html lang="en">
@@ -53,18 +76,35 @@ export default function ReminderEmail({
             </Section>
 
             <Section className="rounded-xl border border-solid border-slate-200 bg-white px-8 py-9">
-              <Text className="m-0 mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-                Invoice {invoiceNumber}
+              {before.map((paragraph, index) => (
+                <Text
+                  key={`before-${index}`}
+                  className="m-0 mb-4 text-[15px] leading-6 text-slate-900 whitespace-pre-line"
+                >
+                  {paragraph}
+                </Text>
+              ))}
+
+              <Hr className="mb-6 border-solid border-slate-200" />
+
+              <Text className="m-0 mb-2 text-[15px] leading-6 text-slate-900">
+                <strong>Invoice:</strong> {invoiceNumber}
               </Text>
-              <Text className="m-0 mb-6 text-2xl font-semibold text-slate-900">
-                {amountDue} due
+              <Text className="m-0 mb-2 text-[15px] leading-6 text-slate-900">
+                <strong>Description:</strong> {description}
+              </Text>
+              <Text className="m-0 mb-2 text-[15px] leading-6 text-slate-900">
+                <strong>Amount due:</strong> {amountDue}
+              </Text>
+              <Text className="m-0 mb-6 text-[15px] leading-6 text-slate-900">
+                <strong>Due date:</strong> {dueDate}
               </Text>
 
               <Hr className="mb-6 border-solid border-slate-200" />
 
-              {paragraphs.map((paragraph, index) => (
+              {after.map((paragraph, index) => (
                 <Text
-                  key={index}
+                  key={`after-${index}`}
                   className="m-0 mb-4 text-[15px] leading-6 text-slate-900 whitespace-pre-line"
                 >
                   {paragraph}
@@ -89,10 +129,14 @@ export default function ReminderEmail({
 
 ReminderEmail.PreviewProps = {
   invoiceNumber: "INV-1042",
+  description: "Web design services",
   amountDue: "$1,240.00",
+  dueDate: "Mar 3, 2026",
   body: `Hi Jordan,
 
 Hope you're doing well. This is a friendly reminder that invoice INV-1042 for $1,240.00 was due on March 3rd and remains unpaid.
+
+Here are the details for your reference:
 
 If you've already sent payment, please disregard this note. Otherwise, you can settle the balance at your earliest convenience, or reach out if you'd like to discuss a payment plan.
 

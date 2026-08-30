@@ -53,10 +53,20 @@ Important: the client's currency is ${input.currency}. Write every amount in the
 
 Important: do NOT invite the client to reply to this email for questions, clarification, or to arrange a payment plan (e.g. "just reply to this email" or "reply to let us know"). This inbox is not monitored. If the draft needs to reference getting in touch, phrase it generally (e.g. "get in touch with us") without implying email reply.
 
+Important: the email template renders a separate bold-labeled block with the invoice number, description, amount due, and due date — inserted into the body at the marker line described below. Do NOT write your own copy of that list anywhere else (no lines like "Invoice:", "Description:", "Amount due:", "Due date:"). It's fine to mention these details naturally in a sentence (e.g. "invoice ${input.invoiceNumber} for ${amount} reached its due date"), just don't format them as a standalone list.
+
+Structure the body in this exact order:
+1. A greeting line (e.g. "Hi ${input.clientName},").
+2. One opening paragraph giving context — mention the invoice and its status in prose.
+3. Then, as its own paragraph by itself — nothing else on that line, no leading or trailing text — exactly this line: "Here are the details for your reference:"
+4. One or more further paragraphs with the rest of the message (the ask, next steps, closing).
+5. Sign off as "The InvoiceGuard team".
+Separate every paragraph, including the "Here are the details for your reference:" line, with a blank line so each is its own paragraph.
+
 Respond with exactly this format and nothing else — no preamble, no markdown:
 SUBJECT: <subject line>
 BODY:
-<email body as plain text, sign off as "The InvoiceGuard team">`;
+<email body as plain text, following the structure above>`;
 
   const response = await getClient().messages.create({
     model: "claude-opus-5",
