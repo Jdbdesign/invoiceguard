@@ -12,6 +12,15 @@ export interface Client {
   currency: string;
 }
 
+/** Client row shape returned by the paginated /api/clients endpoint, with
+ * per-client aggregates computed server-side instead of derived from the
+ * full invoices/paymentPlans arrays. */
+export interface ClientListItem extends Client {
+  totalOwed: number;
+  oldestOverdue: { id: string; dueDate: string } | null;
+  status: ClientStatus;
+}
+
 export interface Invoice {
   id: string;
   clientId: string;

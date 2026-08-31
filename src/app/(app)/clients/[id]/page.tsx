@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/Spinner";
+import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
 import { ReminderModal } from "@/components/invoices/ReminderModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
-import type { Installment, Invoice } from "@/lib/types";
+import { usePaginatedResource } from "@/lib/usePaginatedResource";
+import type { ActivityEntry, Installment, Invoice } from "@/lib/types";
 import {
   formatCurrency,
   formatDate,
@@ -24,19 +26,44 @@ import {
 } from "@/lib/utils";
 import { ActivityIcon, activityIconVariant } from "@/components/ActivityIcon";
 
+const ACTIVITY_PAGE_SIZE = 25;
+
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
   const {
     clients,
     invoices,
     paymentPlans,
-    activityLog,
     loading,
     markInvoicePaid,
     toggleInstallmentPaid,
     settlePaymentPlan,
   } = useAppData();
   const { showToast } = useToast();
+
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityReloadToken, setActivityReloadToken] = useState(0);
+  const refetchActivity = useCallback(() => setActivityReloadToken((t) => t + 1), []);
+
+  // A new client id means a fresh activity feed — start back on page 1.
+  // Render-time reset (see ClientFormModal for the same idiom) rather than
+  // an effect, since setState-in-effect is disallowed here.
+  const [lastActivityClientId, setLastActivityClientId] = useState(params.id);
+  if (params.id !== lastActivityClientId) {
+    setLastActivityClientId(params.id);
+    setActivityPage(1);
+  }
+
+  const {
+    data: clientActivity,
+    total: activityTotal,
+    loading: activityLoading,
+  } = usePaginatedResource<ActivityEntry>(
+    `/api/activity?clientId=${params.id}&page=${activityPage}&pageSize=${ACTIVITY_PAGE_SIZE}`,
+    activityReloadToken,
+    () => showToast("Failed to load activity")
+  );
+
   const [confirmingInvoice, setConfirmingInvoice] = useState<Invoice | null>(null);
   const [confirmingInstallment, setConfirmingInstallment] = useState<{
     planId: string;
@@ -72,9 +99,6 @@ export default function ClientDetailPage() {
     (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
   );
   const clientPlans = getClientPaymentPlans(client.id, paymentPlans);
-  const clientActivity = activityLog
-    .filter((a) => a.clientId === client.id)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const totalOwed = getClientTotalOwed(client.id, invoices);
   const status = getClientStatus(client.id, invoices, paymentPlans);
   const badge = clientStatusLabel(status);
@@ -280,9 +304,9 @@ export default function ClientDetailPage() {
                               setConfirmingInstallment({ planId: plan.id, installment: inst });
                               return;
                             }
-                            toggleInstallmentPaid(plan.id, inst.id).catch(() =>
-                              showToast("Failed to update installment")
-                            );
+                            toggleInstallmentPaid(plan.id, inst.id)
+                              .then(refetchActivity)
+                              .catch(() => showToast("Failed to update installment"));
                           }}
                           className={`whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium transition ${
                             inst.paid
@@ -335,12 +359,22 @@ export default function ClientDetailPage() {
                   </div>
                 </li>
               ))}
-              {clientActivity.length === 0 && (
+              {activityTotal === 0 && (
                 <p className="py-6 text-center text-sm text-slate-500">
                   No activity logged yet.
                 </p>
               )}
             </ol>
+            {activityTotal > 0 && (
+              <Pagination
+                page={activityPage}
+                pageSize={ACTIVITY_PAGE_SIZE}
+                total={activityTotal}
+                onPageChange={setActivityPage}
+                loading={activityLoading}
+                itemLabel="activity entries"
+              />
+            )}
           </Card>
         </div>
       </div>
@@ -356,6 +390,7 @@ export default function ClientDetailPage() {
           try {
             await markInvoicePaid(confirmingInvoice.id);
             showToast(`${confirmingInvoice.id} marked as paid`);
+            refetchActivity();
           } catch {
             showToast(`Failed to mark ${confirmingInvoice.id} as paid`);
           } finally {
@@ -383,6 +418,7 @@ export default function ClientDetailPage() {
               confirmingInstallment.planId,
               confirmingInstallment.installment.id
             );
+            refetchActivity();
           } catch {
             showToast("Failed to update installment");
           } finally {
@@ -411,6 +447,7 @@ export default function ClientDetailPage() {
           try {
             await settlePaymentPlan(confirmingSettlePlan.invoiceId);
             showToast("Remaining balance settled");
+            refetchActivity();
           } catch {
             showToast("Failed to settle remaining balance");
           } finally {
@@ -429,6 +466,7 @@ export default function ClientDetailPage() {
         open={draftingReminderFor !== null}
         onClose={() => setDraftingReminderFor(null)}
         invoiceId={draftingReminderFor}
+        onSent={refetchActivity}
       />
     </div>
   );

@@ -1,42 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/Spinner";
+import { Pagination } from "@/components/ui/Pagination";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { ClientFormModal } from "@/components/clients/ClientFormModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { clientStatusLabel } from "@/lib/badgeHelpers";
-import type { Client } from "@/lib/types";
-import {
-  formatCurrency,
-  formatDate,
-  getClientOldestOverdue,
-  getClientStatus,
-  getClientTotalOwed,
-} from "@/lib/utils";
+import { usePaginatedResource } from "@/lib/usePaginatedResource";
+import type { ClientListItem } from "@/lib/types";
+import { formatCurrency, formatDate } from "@/lib/utils";
+
+const PAGE_SIZE = 25;
 
 export default function ClientsPage() {
-  const { clients, invoices, paymentPlans, deleteClient, loading } = useAppData();
+  const { deleteClient } = useAppData();
   const { showToast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
+  const [editingClient, setEditingClient] = useState<ClientListItem | null>(null);
+  const [deletingClient, setDeletingClient] = useState<ClientListItem | null>(null);
 
-  const rows = clients
-    .map((client) => {
-      const totalOwed = getClientTotalOwed(client.id, invoices);
-      const oldestOverdue = getClientOldestOverdue(client.id, invoices);
-      const status = getClientStatus(client.id, invoices, paymentPlans);
-      return { client, totalOwed, oldestOverdue, status };
-    })
-    .sort((a, b) => b.totalOwed - a.totalOwed);
+  const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
+  const refetch = useCallback(() => setReloadToken((t) => t + 1), []);
 
-  if (loading) {
+  const {
+    data: rows,
+    total,
+    loading,
+  } = usePaginatedResource<ClientListItem>(
+    `/api/clients?page=${page}&pageSize=${PAGE_SIZE}`,
+    reloadToken,
+    () => showToast("Failed to load clients")
+  );
+
+  if (loading && rows.length === 0 && total === 0) {
     return <PageLoading label="Loading clients…" />;
   }
 
@@ -48,7 +51,7 @@ export default function ClientsPage() {
             Clients
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {clients.length} clients on file
+            {total} client{total === 1 ? "" : "s"} on file
           </p>
         </div>
         <button
@@ -63,107 +66,133 @@ export default function ClientsPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <table className="hidden w-full text-left text-sm lg:table">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-medium uppercase tracking-wide text-slate-500">
-              <th className="px-5 py-3">Client</th>
-              <th className="px-5 py-3">Total owed</th>
-              <th className="px-5 py-3">Oldest overdue invoice</th>
-              <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map(({ client, totalOwed, oldestOverdue, status }) => {
-              const badge = clientStatusLabel(status);
-              return (
-                <tr key={client.id} className="transition hover:bg-slate-50">
-                  <td className="px-5 py-4">
-                    <Link
-                      href={`/clients/${client.id}`}
-                      className="font-medium text-slate-900 hover:text-blue-600"
-                    >
-                      {client.name}
-                    </Link>
-                    <p className="text-xs text-slate-500">{client.email}</p>
-                  </td>
-                  <td className="px-5 py-4 font-medium tabular-nums text-slate-900">
-                    {formatCurrency(totalOwed, client.currency)}
-                  </td>
-                  <td className="px-5 py-4 text-slate-600">
-                    {oldestOverdue ? (
-                      <>
-                        {oldestOverdue.id}
-                        <span className="ml-1.5 text-xs text-slate-400">
-                          due {formatDate(oldestOverdue.dueDate)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <Badge variant={badge.variant}>{badge.label}</Badge>
-                  </td>
-                  <td className="px-5 py-4 text-right">
+        {total === 0 ? (
+          <p className="px-5 py-10 text-center text-sm text-slate-500">
+            No clients yet. Add your first client to get started.
+          </p>
+        ) : (
+          <>
+            <table className="hidden w-full text-left text-sm lg:table">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="px-5 py-3">Client</th>
+                  <th className="px-5 py-3">Total owed</th>
+                  <th className="px-5 py-3">Oldest overdue invoice</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((client) => {
+                  const badge = clientStatusLabel(client.status);
+                  return (
+                    <tr key={client.id} className="transition hover:bg-slate-50">
+                      <td className="px-5 py-4">
+                        <Link
+                          href={`/clients/${client.id}`}
+                          className="font-medium text-slate-900 hover:text-blue-600"
+                        >
+                          {client.name}
+                        </Link>
+                        <p className="text-xs text-slate-500">{client.email}</p>
+                      </td>
+                      <td className="px-5 py-4 font-medium tabular-nums text-slate-900">
+                        {formatCurrency(client.totalOwed, client.currency)}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        {client.oldestOverdue ? (
+                          <>
+                            {client.oldestOverdue.id}
+                            <span className="ml-1.5 text-xs text-slate-400">
+                              due {formatDate(client.oldestOverdue.dueDate)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <RowActionsMenu
+                          onEdit={() => setEditingClient(client)}
+                          onDelete={() => setDeletingClient(client)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="divide-y divide-slate-100 lg:hidden">
+              {rows.map((client) => {
+                const badge = clientStatusLabel(client.status);
+                return (
+                  <div key={client.id} className="flex items-start justify-between gap-3 px-4 py-4">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/clients/${client.id}`}
+                        className="font-medium text-slate-900 hover:text-blue-600"
+                      >
+                        {client.name}
+                      </Link>
+                      <p className="truncate text-xs text-slate-500">{client.email}</p>
+                      <p className="mt-2 text-sm font-medium tabular-nums text-slate-900">
+                        {formatCurrency(client.totalOwed, client.currency)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {client.oldestOverdue ? (
+                          <>
+                            {client.oldestOverdue.id}{" "}
+                            <span className="text-slate-400">
+                              due {formatDate(client.oldestOverdue.dueDate)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">No overdue invoices</span>
+                        )}
+                      </p>
+                      <div className="mt-2">
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </div>
+                    </div>
                     <RowActionsMenu
                       onEdit={() => setEditingClient(client)}
                       onDelete={() => setDeletingClient(client)}
                     />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        <div className="divide-y divide-slate-100 lg:hidden">
-          {rows.map(({ client, totalOwed, oldestOverdue, status }) => {
-            const badge = clientStatusLabel(status);
-            return (
-              <div key={client.id} className="flex items-start justify-between gap-3 px-4 py-4">
-                <div className="min-w-0">
-                  <Link
-                    href={`/clients/${client.id}`}
-                    className="font-medium text-slate-900 hover:text-blue-600"
-                  >
-                    {client.name}
-                  </Link>
-                  <p className="truncate text-xs text-slate-500">{client.email}</p>
-                  <p className="mt-2 text-sm font-medium tabular-nums text-slate-900">
-                    {formatCurrency(totalOwed, client.currency)}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {oldestOverdue ? (
-                      <>
-                        {oldestOverdue.id}{" "}
-                        <span className="text-slate-400">
-                          due {formatDate(oldestOverdue.dueDate)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-slate-400">No overdue invoices</span>
-                    )}
-                  </p>
-                  <div className="mt-2">
-                    <Badge variant={badge.variant}>{badge.label}</Badge>
                   </div>
-                </div>
-                <RowActionsMenu
-                  onEdit={() => setEditingClient(client)}
-                  onDelete={() => setDeletingClient(client)}
-                />
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+
+            <Pagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setPage}
+              loading={loading}
+              itemLabel="clients"
+            />
+          </>
+        )}
       </Card>
 
-      <ClientFormModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <ClientFormModal
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          refetch();
+        }}
+      />
 
       <ClientFormModal
         open={editingClient !== null}
-        onClose={() => setEditingClient(null)}
+        onClose={() => {
+          setEditingClient(null);
+          refetch();
+        }}
         client={editingClient ?? undefined}
       />
 
@@ -179,6 +208,11 @@ export default function ClientsPage() {
             await deleteClient(deletingClient.id);
             showToast(`${deletingClient.name} deleted`);
             setDeletingClient(null);
+            if (rows.length === 1 && page > 1) {
+              setPage((p) => p - 1);
+            } else {
+              refetch();
+            }
           } catch {
             showToast("Failed to delete client");
           }
