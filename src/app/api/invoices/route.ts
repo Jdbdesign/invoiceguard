@@ -1,18 +1,84 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapInvoice } from "@/lib/mappers";
-import { fromIsoDate } from "@/lib/dateSerialization";
+import { fromIsoDate, toIsoDate } from "@/lib/dateSerialization";
+import { daysBetween, todayIso } from "@/lib/utils";
+import { parsePaginationParams } from "@/lib/pagination";
 import { auth } from "@/auth";
 
-export async function GET() {
+type SortKey = "dueDate" | "amount" | "daysOverdue";
+
+export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const invoices = await prisma.invoice.findMany({
-    where: { client: { ownerId: session.user.id } },
-    orderBy: { createdAt: "desc" },
+  const ownerId = session.user.id;
+  const { searchParams } = new URL(request.url);
+  const pagination = parsePaginationParams(searchParams);
+
+  if (!pagination) {
+    const invoices = await prisma.invoice.findMany({
+      where: { client: { ownerId } },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(invoices.map(mapInvoice));
+  }
+
+  const statusParam = searchParams.get("status");
+  const sortParam = (searchParams.get("sort") as SortKey | null) ?? "dueDate";
+  const where = {
+    client: { ownerId },
+    ...(statusParam && statusParam !== "all" ? { status: statusParam } : {}),
+  };
+
+  if (sortParam === "daysOverdue") {
+    const scalarRows = await prisma.invoice.findMany({
+      where,
+      select: { id: true, dueDate: true, status: true },
+    });
+    const today = todayIso();
+    const ranked = scalarRows
+      .map((r) => ({
+        id: r.id,
+        sortValue: r.status === "paid" ? -9999 : daysBetween(toIsoDate(r.dueDate), today),
+      }))
+      .sort((a, b) => b.sortValue - a.sortValue);
+
+    const total = ranked.length;
+    const start = (pagination.page - 1) * pagination.pageSize;
+    const pageIds = ranked.slice(start, start + pagination.pageSize).map((r) => r.id);
+
+    const rows = await prisma.invoice.findMany({ where: { id: { in: pageIds } } });
+    const rowsById = new Map(rows.map((r) => [r.id, r]));
+    const ordered = pageIds
+      .map((id) => rowsById.get(id))
+      .filter((r): r is (typeof rows)[number] => Boolean(r));
+
+    return NextResponse.json({
+      data: ordered.map(mapInvoice),
+      total,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+  }
+
+  const orderBy = sortParam === "amount" ? { balance: "desc" as const } : { dueDate: "asc" as const };
+  const [total, invoices] = await Promise.all([
+    prisma.invoice.count({ where }),
+    prisma.invoice.findMany({
+      where,
+      orderBy,
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+    }),
+  ]);
+
+  return NextResponse.json({
+    data: invoices.map(mapInvoice),
+    total,
+    page: pagination.page,
+    pageSize: pagination.pageSize,
   });
-  return NextResponse.json(invoices.map(mapInvoice));
 }
 
 async function generateInvoiceNumber(): Promise<string> {

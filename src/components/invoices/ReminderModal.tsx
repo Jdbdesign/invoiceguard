@@ -14,10 +14,12 @@ export function ReminderModal({
   open,
   onClose,
   invoiceId,
+  onSent,
 }: {
   open: boolean;
   onClose: () => void;
   invoiceId: string | null;
+  onSent?: () => void;
 }) {
   const { draftReminder, sendReminder } = useAppData();
   const { showToast } = useToast();
@@ -90,6 +92,7 @@ export function ReminderModal({
       await sendReminder(invoiceId, draft);
       setStatus("sent");
       showToast(`Reminder sent for ${invoiceId}`);
+      onSent?.();
       onClose();
     } catch (error) {
       setErrorMessage(
