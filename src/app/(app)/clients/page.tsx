@@ -9,6 +9,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { ClientFormModal } from "@/components/clients/ClientFormModal";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { clientStatusLabel } from "@/lib/badgeHelpers";
@@ -45,7 +46,7 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Clients
@@ -54,15 +55,18 @@ export default function ClientsPage() {
             {total} client{total === 1 ? "" : "s"} on file
           </p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-          </svg>
-          Add client
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportCsvButton href="/api/clients/export" />
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+            </svg>
+            Add client
+          </button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
