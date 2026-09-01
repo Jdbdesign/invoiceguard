@@ -21,6 +21,11 @@ export interface ClientListItem extends Client {
   status: ClientStatus;
 }
 
+/** Whole-list share view row — the same fields the authenticated Clients
+ * list actually renders, deliberately excluding phone (present on
+ * ClientListItem/Client but never shown on that page). */
+export type SharedClientSummary = Omit<ClientListItem, "phone">;
+
 export interface Invoice {
   id: string;
   clientId: string;

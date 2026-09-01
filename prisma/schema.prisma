@@ -101,15 +101,15 @@ model Installment {
 model ShareLink {
   id             String    @id @default(cuid())
   ownerId        String
-  clientId       String
+  clientId       String?
   tokenHash      String    @unique
   createdAt      DateTime  @default(now())
   expiresAt      DateTime
   revokedAt      DateTime?
   lastAccessedAt DateTime?
 
-  owner  User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  owner  User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([ownerId, clientId])
 }
