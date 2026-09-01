@@ -2,12 +2,12 @@ import { toIsoDate } from "./dateSerialization";
 import type {
   ActivityEntry,
   ActivityType,
+  AppSettings,
   Client,
   Installment,
   Invoice,
   InvoiceStatus,
   PaymentPlan,
-  ReminderSchedule,
   ReminderStage,
 } from "./types";
 
@@ -57,6 +57,7 @@ type SettingsRow = {
   friendlyReminderDays: number;
   firmReminderDays: number;
   finalNoticeDays: number;
+  passwordReconfirmMinutes: number;
 };
 
 export function mapClient(c: ClientRow): Client {
@@ -118,10 +119,11 @@ export function mapPaymentPlan(p: PaymentPlanRow): PaymentPlan {
   };
 }
 
-export function mapSettings(s: SettingsRow): ReminderSchedule {
+export function mapSettings(s: SettingsRow): AppSettings {
   return {
     friendlyDays: s.friendlyReminderDays,
     firmDays: s.firmReminderDays,
     finalDays: s.finalNoticeDays,
+    passwordReconfirmMinutes: s.passwordReconfirmMinutes,
   };
 }

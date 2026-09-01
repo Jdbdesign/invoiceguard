@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/Badge";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { getTemplatePreview } from "@/lib/templates";
+import {
+  PASSWORD_RECONFIRM_MIN_MINUTES,
+  PASSWORD_RECONFIRM_MAX_MINUTES,
+} from "@/lib/passwordReconfirmBounds";
 import type { ReminderStage } from "@/lib/types";
 
 const STAGES: {
@@ -39,16 +43,31 @@ const STAGE_META: Record<
 };
 
 export default function SettingsPage() {
-  const { reminderSchedule, updateReminderSchedule, runDailyCheck } = useAppData();
+  const {
+    reminderSchedule,
+    updateReminderSchedule,
+    passwordReconfirmMinutes,
+    updatePasswordReconfirmMinutes,
+    runDailyCheck,
+  } = useAppData();
   const { showToast } = useToast();
   const [draft, setDraft] = useState(reminderSchedule);
   const [syncedSchedule, setSyncedSchedule] = useState(reminderSchedule);
   const [expandedStage, setExpandedStage] = useState<ReminderStage | null>("friendly");
   const [checkingOverdue, setCheckingOverdue] = useState(false);
 
+  const [reconfirmDraft, setReconfirmDraft] = useState(passwordReconfirmMinutes);
+  const [syncedReconfirmMinutes, setSyncedReconfirmMinutes] = useState(passwordReconfirmMinutes);
+  const [savingReconfirm, setSavingReconfirm] = useState(false);
+
   if (reminderSchedule !== syncedSchedule) {
     setSyncedSchedule(reminderSchedule);
     setDraft(reminderSchedule);
+  }
+
+  if (passwordReconfirmMinutes !== syncedReconfirmMinutes) {
+    setSyncedReconfirmMinutes(passwordReconfirmMinutes);
+    setReconfirmDraft(passwordReconfirmMinutes);
   }
 
   const isDirty =
@@ -56,9 +75,28 @@ export default function SettingsPage() {
     draft.firmDays !== reminderSchedule.firmDays ||
     draft.finalDays !== reminderSchedule.finalDays;
 
+  const isReconfirmValid =
+    Number.isInteger(reconfirmDraft) &&
+    reconfirmDraft >= PASSWORD_RECONFIRM_MIN_MINUTES &&
+    reconfirmDraft <= PASSWORD_RECONFIRM_MAX_MINUTES;
+  const isReconfirmDirty = reconfirmDraft !== passwordReconfirmMinutes;
+
   async function handleSave() {
     await updateReminderSchedule(draft);
     showToast("Reminder schedule saved");
+  }
+
+  async function handleSaveReconfirm() {
+    if (!isReconfirmValid) return;
+    setSavingReconfirm(true);
+    try {
+      await updatePasswordReconfirmMinutes(reconfirmDraft);
+      showToast("Password re-confirmation window saved");
+    } catch {
+      showToast("Failed to save — see console for details");
+    } finally {
+      setSavingReconfirm(false);
+    }
   }
 
   async function handleRunDailyCheck() {
@@ -98,6 +136,50 @@ export default function SettingsPage() {
           {checkingOverdue ? "Running…" : "Run daily check"}
         </button>
       </div>
+
+      <Card>
+        <CardHeader
+          title="Security"
+          subtitle="How often you need to re-confirm your password for sensitive actions"
+          action={
+            <button
+              onClick={handleSaveReconfirm}
+              disabled={!isReconfirmDirty || !isReconfirmValid || savingReconfirm}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              {savingReconfirm ? "Saving…" : "Save changes"}
+            </button>
+          }
+        />
+        <div className="px-5 py-5">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-600">
+              Require password confirmation every
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={PASSWORD_RECONFIRM_MIN_MINUTES}
+                max={PASSWORD_RECONFIRM_MAX_MINUTES}
+                value={reconfirmDraft}
+                onChange={(e) => setReconfirmDraft(Number(e.target.value))}
+                aria-invalid={!isReconfirmValid}
+                className="input w-24"
+              />
+              <span className="text-xs text-slate-500">
+                minutes for sensitive actions ({PASSWORD_RECONFIRM_MIN_MINUTES}–
+                {PASSWORD_RECONFIRM_MAX_MINUTES})
+              </span>
+            </div>
+            {!isReconfirmValid && (
+              <p className="mt-1.5 text-xs text-red-600">
+                Enter a whole number between {PASSWORD_RECONFIRM_MIN_MINUTES} and{" "}
+                {PASSWORD_RECONFIRM_MAX_MINUTES}.
+              </p>
+            )}
+          </label>
+        </div>
+      </Card>
 
       <Card>
         <CardHeader

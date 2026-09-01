@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { PASSWORD_RECONFIRM_DEFAULT_MINUTES } from "./passwordReconfirmBounds";
 
 export async function getOrCreateSettings(ownerId: string) {
   const existing = await prisma.settings.findUnique({ where: { ownerId } });
@@ -9,6 +10,7 @@ export async function getOrCreateSettings(ownerId: string) {
       friendlyReminderDays: 3,
       firmReminderDays: 15,
       finalNoticeDays: 45,
+      passwordReconfirmMinutes: PASSWORD_RECONFIRM_DEFAULT_MINUTES,
     },
   });
 }

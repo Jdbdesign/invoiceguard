@@ -10,8 +10,12 @@ import {
 } from "react";
 import { todayIso, getInvoiceBalance } from "@/lib/utils";
 import { computeInstallmentSchedule, type PaymentPlanFrequency } from "@/lib/paymentPlan";
+import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
+import { PASSWORD_RECONFIRM_DEFAULT_MINUTES } from "@/lib/passwordReconfirmBounds";
+import { PasswordConfirmModal } from "@/components/auth/PasswordConfirmModal";
 import type {
   ActivityEntry,
+  AppSettings,
   Client,
   Invoice,
   PaymentPlan,
@@ -60,6 +64,7 @@ interface AppDataContextValue {
   paymentPlans: PaymentPlan[];
   activityLog: ActivityEntry[];
   reminderSchedule: ReminderSchedule;
+  passwordReconfirmMinutes: number;
   loading: boolean;
   addClient: (input: NewClientInput) => Promise<Client>;
   addInvoice: (input: NewInvoiceInput) => Promise<Invoice>;
@@ -82,6 +87,7 @@ interface AppDataContextValue {
   toggleInstallmentPaid: (planId: string, installmentId: string) => Promise<void>;
   settlePaymentPlan: (invoiceId: string) => Promise<void>;
   updateReminderSchedule: (schedule: ReminderSchedule) => Promise<void>;
+  updatePasswordReconfirmMinutes: (minutes: number) => Promise<void>;
   runDailyCheck: () => Promise<{ remindersSent: number }>;
 }
 
@@ -93,13 +99,25 @@ const DEFAULT_SCHEDULE: ReminderSchedule = {
   finalDays: 45,
 };
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+async function fetchJson<T>(
+  url: string,
+  init?: RequestInit,
+  isRetryAfterConfirm = false
+): Promise<T> {
   const res = await fetch(url, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (
+      !isRetryAfterConfirm &&
+      res.status === 403 &&
+      body.code === "PASSWORD_CONFIRMATION_REQUIRED"
+    ) {
+      await requestPasswordConfirmation();
+      return fetchJson<T>(url, init, true);
+    }
     throw new Error(body.error ?? `Request to ${url} failed (${res.status})`);
   }
   return res.json();
@@ -112,6 +130,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
   const [reminderSchedule, setReminderSchedule] =
     useState<ReminderSchedule>(DEFAULT_SCHEDULE);
+  const [passwordReconfirmMinutes, setPasswordReconfirmMinutes] = useState<number>(
+    PASSWORD_RECONFIRM_DEFAULT_MINUTES
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -124,7 +145,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             fetchJson<Invoice[]>("/api/invoices"),
             fetchJson<PaymentPlan[]>("/api/payment-plans"),
             fetchJson<ActivityEntry[]>("/api/activity"),
-            fetchJson<ReminderSchedule>("/api/settings"),
+            fetchJson<AppSettings>("/api/settings"),
           ]);
         if (cancelled) return;
         setClients(clientsRes);
@@ -132,6 +153,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setPaymentPlans(plansRes);
         setActivityLog(activityRes);
         setReminderSchedule(settingsRes);
+        setPasswordReconfirmMinutes(settingsRes.passwordReconfirmMinutes);
       } catch (error) {
         console.error("Failed to load InvoiceGuard data", error);
       } finally {
@@ -432,7 +454,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const updateReminderSchedule = useCallback(
     async (schedule: ReminderSchedule) => {
-      const updated = await fetchJson<ReminderSchedule>("/api/settings", {
+      const updated = await fetchJson<AppSettings>("/api/settings", {
         method: "PUT",
         body: JSON.stringify(schedule),
       });
@@ -440,6 +462,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const updatePasswordReconfirmMinutes = useCallback(async (minutes: number) => {
+    const updated = await fetchJson<AppSettings>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ passwordReconfirmMinutes: minutes }),
+    });
+    setPasswordReconfirmMinutes(updated.passwordReconfirmMinutes);
+  }, []);
 
   const runDailyCheck = useCallback(async () => {
     const result = await fetchJson<{ remindersSent: number }>(
@@ -460,6 +490,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       paymentPlans,
       activityLog,
       reminderSchedule,
+      passwordReconfirmMinutes,
       loading,
       addClient,
       addInvoice,
@@ -474,6 +505,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       toggleInstallmentPaid,
       settlePaymentPlan,
       updateReminderSchedule,
+      updatePasswordReconfirmMinutes,
       runDailyCheck,
     }),
     [
@@ -482,6 +514,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       paymentPlans,
       activityLog,
       reminderSchedule,
+      passwordReconfirmMinutes,
       loading,
       addClient,
       addInvoice,
@@ -496,12 +529,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       toggleInstallmentPaid,
       settlePaymentPlan,
       updateReminderSchedule,
+      updatePasswordReconfirmMinutes,
       runDailyCheck,
     ]
   );
 
   return (
-    <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>
+    <AppDataContext.Provider value={value}>
+      {children}
+      <PasswordConfirmModal />
+    </AppDataContext.Provider>
   );
 }
 

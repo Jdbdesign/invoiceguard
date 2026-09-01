@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { mapInvoice } from "@/lib/mappers";
 import { fromIsoDate } from "@/lib/dateSerialization";
 import { auth } from "@/auth";
+import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 
 const EDITABLE_STATUSES = new Set(["unpaid", "partial", "paid"]);
 
@@ -12,6 +13,8 @@ export async function PATCH(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const confirmError = await requireFreshPasswordConfirmation(session.user.id);
+  if (confirmError) return confirmError;
 
   const { invoiceNumber } = await params;
   const body = await request.json();
@@ -82,6 +85,8 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const confirmError = await requireFreshPasswordConfirmation(session.user.id);
+  if (confirmError) return confirmError;
 
   const { invoiceNumber } = await params;
 
