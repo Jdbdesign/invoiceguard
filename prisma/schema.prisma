@@ -115,11 +115,12 @@ model ShareLink {
 }
 
 model Settings {
-  id                   String @id @default(cuid())
-  ownerId              String @unique
-  friendlyReminderDays Int    @default(3)
-  firmReminderDays     Int    @default(15)
-  finalNoticeDays      Int    @default(45)
+  id                       String @id @default(cuid())
+  ownerId                  String @unique
+  friendlyReminderDays     Int    @default(3)
+  firmReminderDays         Int    @default(15)
+  finalNoticeDays          Int    @default(45)
+  passwordReconfirmMinutes Int    @default(20)
 
   owner User @relation(fields: [ownerId], references: [id])
 }

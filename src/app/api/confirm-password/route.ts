@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { issuePasswordConfirmation } from "@/lib/passwordConfirmation";
+import { getOrCreateSettings } from "@/lib/settings";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
   }
 
-  await issuePasswordConfirmation(user.id);
+  const settings = await getOrCreateSettings(user.id);
+  await issuePasswordConfirmation(user.id, settings.passwordReconfirmMinutes);
   return NextResponse.json({ success: true });
 }

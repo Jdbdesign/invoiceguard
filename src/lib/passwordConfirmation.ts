@@ -1,9 +1,12 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import {
+  PASSWORD_RECONFIRM_MIN_MINUTES,
+  PASSWORD_RECONFIRM_MAX_MINUTES,
+} from "./passwordReconfirmBounds";
 
 const COOKIE_NAME = "pwd_confirm";
-const WINDOW_MS = 20 * 60 * 1000;
 
 function getSecret(): string {
   const secret = process.env.AUTH_SECRET;
@@ -17,8 +20,22 @@ function sign(payloadB64: string): string {
   return crypto.createHmac("sha256", getSecret()).update(payloadB64).digest("base64url");
 }
 
-export async function issuePasswordConfirmation(userId: string): Promise<void> {
-  const exp = Date.now() + WINDOW_MS;
+/**
+ * Issues the confirmation cookie with an expiry based on `windowMinutes` —
+ * the user's currently configured Settings.passwordReconfirmMinutes at the
+ * moment of confirmation. Clamped defensively in case a bad value ever
+ * reaches here directly (API route validation is the primary guard).
+ */
+export async function issuePasswordConfirmation(
+  userId: string,
+  windowMinutes: number
+): Promise<void> {
+  const clampedMinutes = Math.min(
+    Math.max(windowMinutes, PASSWORD_RECONFIRM_MIN_MINUTES),
+    PASSWORD_RECONFIRM_MAX_MINUTES
+  );
+  const windowMs = clampedMinutes * 60 * 1000;
+  const exp = Date.now() + windowMs;
   const payloadB64 = Buffer.from(JSON.stringify({ sub: userId, exp })).toString("base64url");
   const token = `${payloadB64}.${sign(payloadB64)}`;
 
@@ -28,14 +45,16 @@ export async function issuePasswordConfirmation(userId: string): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: WINDOW_MS / 1000,
+    maxAge: windowMs / 1000,
   });
 }
 
-// The cookie's own maxAge causes the browser to drop it after 20 minutes,
-// but that's just a courtesy — `exp` inside the signed payload is what's
-// actually checked below, so an attacker replaying a stale cookie value
-// can't extend the window by lying about how old it is.
+// The cookie's own maxAge causes the browser to drop it after the
+// configured window, but that's just a courtesy — `exp` inside the signed
+// payload is what's actually checked below, so an attacker replaying a
+// stale cookie value can't extend the window by lying about how old it is.
+// Because `exp` is baked in at issuance time, changing the setting later
+// never retroactively shortens or extends an already-issued cookie.
 async function hasFreshPasswordConfirmation(userId: string): Promise<boolean> {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;

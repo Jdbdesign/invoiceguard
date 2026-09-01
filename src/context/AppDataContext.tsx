@@ -11,9 +11,11 @@ import {
 import { todayIso, getInvoiceBalance } from "@/lib/utils";
 import { computeInstallmentSchedule, type PaymentPlanFrequency } from "@/lib/paymentPlan";
 import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
+import { PASSWORD_RECONFIRM_DEFAULT_MINUTES } from "@/lib/passwordReconfirmBounds";
 import { PasswordConfirmModal } from "@/components/auth/PasswordConfirmModal";
 import type {
   ActivityEntry,
+  AppSettings,
   Client,
   Invoice,
   PaymentPlan,
@@ -62,6 +64,7 @@ interface AppDataContextValue {
   paymentPlans: PaymentPlan[];
   activityLog: ActivityEntry[];
   reminderSchedule: ReminderSchedule;
+  passwordReconfirmMinutes: number;
   loading: boolean;
   addClient: (input: NewClientInput) => Promise<Client>;
   addInvoice: (input: NewInvoiceInput) => Promise<Invoice>;
@@ -84,6 +87,7 @@ interface AppDataContextValue {
   toggleInstallmentPaid: (planId: string, installmentId: string) => Promise<void>;
   settlePaymentPlan: (invoiceId: string) => Promise<void>;
   updateReminderSchedule: (schedule: ReminderSchedule) => Promise<void>;
+  updatePasswordReconfirmMinutes: (minutes: number) => Promise<void>;
   runDailyCheck: () => Promise<{ remindersSent: number }>;
 }
 
@@ -126,6 +130,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
   const [reminderSchedule, setReminderSchedule] =
     useState<ReminderSchedule>(DEFAULT_SCHEDULE);
+  const [passwordReconfirmMinutes, setPasswordReconfirmMinutes] = useState<number>(
+    PASSWORD_RECONFIRM_DEFAULT_MINUTES
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -138,7 +145,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             fetchJson<Invoice[]>("/api/invoices"),
             fetchJson<PaymentPlan[]>("/api/payment-plans"),
             fetchJson<ActivityEntry[]>("/api/activity"),
-            fetchJson<ReminderSchedule>("/api/settings"),
+            fetchJson<AppSettings>("/api/settings"),
           ]);
         if (cancelled) return;
         setClients(clientsRes);
@@ -146,6 +153,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setPaymentPlans(plansRes);
         setActivityLog(activityRes);
         setReminderSchedule(settingsRes);
+        setPasswordReconfirmMinutes(settingsRes.passwordReconfirmMinutes);
       } catch (error) {
         console.error("Failed to load InvoiceGuard data", error);
       } finally {
@@ -446,7 +454,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const updateReminderSchedule = useCallback(
     async (schedule: ReminderSchedule) => {
-      const updated = await fetchJson<ReminderSchedule>("/api/settings", {
+      const updated = await fetchJson<AppSettings>("/api/settings", {
         method: "PUT",
         body: JSON.stringify(schedule),
       });
@@ -454,6 +462,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const updatePasswordReconfirmMinutes = useCallback(async (minutes: number) => {
+    const updated = await fetchJson<AppSettings>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ passwordReconfirmMinutes: minutes }),
+    });
+    setPasswordReconfirmMinutes(updated.passwordReconfirmMinutes);
+  }, []);
 
   const runDailyCheck = useCallback(async () => {
     const result = await fetchJson<{ remindersSent: number }>(
@@ -474,6 +490,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       paymentPlans,
       activityLog,
       reminderSchedule,
+      passwordReconfirmMinutes,
       loading,
       addClient,
       addInvoice,
@@ -488,6 +505,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       toggleInstallmentPaid,
       settlePaymentPlan,
       updateReminderSchedule,
+      updatePasswordReconfirmMinutes,
       runDailyCheck,
     }),
     [
@@ -496,6 +514,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       paymentPlans,
       activityLog,
       reminderSchedule,
+      passwordReconfirmMinutes,
       loading,
       addClient,
       addInvoice,
@@ -510,6 +529,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       toggleInstallmentPaid,
       settlePaymentPlan,
       updateReminderSchedule,
+      updatePasswordReconfirmMinutes,
       runDailyCheck,
     ]
   );

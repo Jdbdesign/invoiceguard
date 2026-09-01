@@ -71,3 +71,7 @@ export interface ReminderSchedule {
   firmDays: number;
   finalDays: number;
 }
+
+export interface AppSettings extends ReminderSchedule {
+  passwordReconfirmMinutes: number;
+}
