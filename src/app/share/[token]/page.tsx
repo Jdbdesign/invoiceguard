@@ -8,7 +8,7 @@ import { PageLoading } from "@/components/ui/Spinner";
 import { Pagination } from "@/components/ui/Pagination";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
 import { usePaginatedResource } from "@/lib/usePaginatedResource";
-import type { ActivityEntry, Client, Invoice, PaymentPlan } from "@/lib/types";
+import type { ActivityEntry, Client, Invoice, PaymentPlan, SharedClientSummary } from "@/lib/types";
 import {
   formatCurrency,
   formatDate,
@@ -22,18 +22,15 @@ import { ActivityIcon, activityIconVariant } from "@/components/ActivityIcon";
 
 const ACTIVITY_PAGE_SIZE = 25;
 
-type ShareData = {
-  client: Client;
-  invoices: Invoice[];
-  paymentPlans: PaymentPlan[];
-};
+type ShareData =
+  | { scope: "client"; client: Client; invoices: Invoice[]; paymentPlans: PaymentPlan[] }
+  | { scope: "clients"; clients: SharedClientSummary[] };
 
-export default function SharedClientPage() {
+export default function SharedTokenPage() {
   const params = useParams<{ token: string }>();
   const [data, setData] = useState<ShareData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activityPage, setActivityPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,19 +58,10 @@ export default function SharedClientPage() {
     };
   }, [params.token]);
 
-  const {
-    data: activity,
-    total: activityTotal,
-    loading: activityLoading,
-  } = usePaginatedResource<ActivityEntry>(
-    `/api/share/${params.token}/activity?page=${activityPage}&pageSize=${ACTIVITY_PAGE_SIZE}`,
-    0
-  );
-
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <PageLoading label="Loading shared client view…" />
+        <PageLoading label="Loading shared view…" />
       </div>
     );
   }
@@ -90,7 +78,134 @@ export default function SharedClientPage() {
     );
   }
 
-  const { client, invoices, paymentPlans } = data;
+  if (data.scope === "clients") {
+    return <SharedClientsListView clients={data.clients} />;
+  }
+
+  return <SharedClientView token={params.token} client={data.client} invoices={data.invoices} paymentPlans={data.paymentPlans} />;
+}
+
+function SharedClientsListView({ clients }: { clients: SharedClientSummary[] }) {
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+      <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
+        <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" />
+        </svg>
+        Shared read-only view — no account required, no changes can be made here.
+      </div>
+
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900">Clients</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          {clients.length} client{clients.length === 1 ? "" : "s"} on file
+        </p>
+      </div>
+
+      <Card className="overflow-hidden">
+        {clients.length === 0 ? (
+          <p className="px-5 py-10 text-center text-sm text-slate-500">No clients yet.</p>
+        ) : (
+          <>
+            <table className="hidden w-full text-left text-sm lg:table">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="px-5 py-3">Client</th>
+                  <th className="px-5 py-3">Total owed</th>
+                  <th className="px-5 py-3">Oldest overdue invoice</th>
+                  <th className="px-5 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {clients.map((client) => {
+                  const badge = clientStatusLabel(client.status);
+                  return (
+                    <tr key={client.id}>
+                      <td className="px-5 py-4">
+                        <p className="font-medium text-slate-900">{client.name}</p>
+                        <p className="text-xs text-slate-500">{client.email}</p>
+                      </td>
+                      <td className="px-5 py-4 font-medium tabular-nums text-slate-900">
+                        {formatCurrency(client.totalOwed, client.currency)}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        {client.oldestOverdue ? (
+                          <>
+                            {client.oldestOverdue.id}
+                            <span className="ml-1.5 text-xs text-slate-400">
+                              due {formatDate(client.oldestOverdue.dueDate)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="divide-y divide-slate-100 lg:hidden">
+              {clients.map((client) => {
+                const badge = clientStatusLabel(client.status);
+                return (
+                  <div key={client.id} className="px-4 py-4">
+                    <p className="font-medium text-slate-900">{client.name}</p>
+                    <p className="truncate text-xs text-slate-500">{client.email}</p>
+                    <p className="mt-2 text-sm font-medium tabular-nums text-slate-900">
+                      {formatCurrency(client.totalOwed, client.currency)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {client.oldestOverdue ? (
+                        <>
+                          {client.oldestOverdue.id}{" "}
+                          <span className="text-slate-400">
+                            due {formatDate(client.oldestOverdue.dueDate)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">No overdue invoices</span>
+                      )}
+                    </p>
+                    <div className="mt-2">
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function SharedClientView({
+  token,
+  client,
+  invoices,
+  paymentPlans,
+}: {
+  token: string;
+  client: Client;
+  invoices: Invoice[];
+  paymentPlans: PaymentPlan[];
+}) {
+  const [activityPage, setActivityPage] = useState(1);
+  const {
+    data: activity,
+    total: activityTotal,
+    loading: activityLoading,
+  } = usePaginatedResource<ActivityEntry>(
+    `/api/share/${token}/activity?page=${activityPage}&pageSize=${ACTIVITY_PAGE_SIZE}`,
+    0
+  );
+
   const clientInvoices = getClientInvoices(client.id, invoices).sort(
     (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
   );

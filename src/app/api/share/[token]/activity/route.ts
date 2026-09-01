@@ -10,7 +10,7 @@ export async function GET(
 ) {
   const { token } = await params;
   const link = await resolveShareLink(token);
-  if (!link) {
+  if (!link || link.clientId === null) {
     return NextResponse.json(
       { error: "This link is no longer available" },
       { status: 404 }

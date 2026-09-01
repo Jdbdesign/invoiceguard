@@ -10,6 +10,7 @@ import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { ClientFormModal } from "@/components/clients/ClientFormModal";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
+import { ShareClientsListModal } from "@/components/clients/ShareClientsListModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { clientStatusLabel } from "@/lib/badgeHelpers";
@@ -23,6 +24,7 @@ export default function ClientsPage() {
   const { deleteClient } = useAppData();
   const { showToast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientListItem | null>(null);
   const [deletingClient, setDeletingClient] = useState<ClientListItem | null>(null);
 
@@ -57,6 +59,15 @@ export default function ClientsPage() {
         </div>
         <div className="flex items-center gap-2">
           <ExportCsvButton href="/api/clients/export" />
+          <button
+            onClick={() => setShareModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.68 13.34l6.65 3.83m-.01-10.34L8.68 10.66M18 6a2 2 0 11-4 0 2 2 0 014 0zm0 12a2 2 0 11-4 0 2 2 0 014 0zM8 12a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Share list
+          </button>
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
@@ -182,6 +193,11 @@ export default function ClientsPage() {
           </>
         )}
       </Card>
+
+      <ShareClientsListModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
 
       <ClientFormModal
         open={modalOpen}

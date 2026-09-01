@@ -9,16 +9,17 @@ function hashToken(rawToken: string): string {
   return createHash("sha256").update(rawToken).digest("hex");
 }
 
+/** clientId omitted (or null) creates a whole-clients-list scoped link. */
 export async function createShareLink(
   ownerId: string,
-  clientId: string
+  clientId?: string | null
 ): Promise<{ id: string; rawToken: string; expiresAt: Date }> {
   const rawToken = randomBytes(TOKEN_BYTES).toString("hex");
   const tokenHash = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + EXPIRY_MS);
 
   const link = await prisma.shareLink.create({
-    data: { ownerId, clientId, tokenHash, expiresAt },
+    data: { ownerId, clientId: clientId ?? null, tokenHash, expiresAt },
   });
 
   return { id: link.id, rawToken, expiresAt };
