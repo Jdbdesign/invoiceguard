@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { mapClient } from "@/lib/mappers";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/utils";
 import { auth } from "@/auth";
+import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 
 const VALID_CURRENCIES = new Set(CURRENCIES.map((c) => c.code));
 
@@ -12,6 +13,8 @@ export async function PATCH(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const confirmError = await requireFreshPasswordConfirmation(session.user.id);
+  if (confirmError) return confirmError;
 
   const { id } = await params;
   const body = await request.json();
@@ -48,6 +51,8 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const confirmError = await requireFreshPasswordConfirmation(session.user.id);
+  if (confirmError) return confirmError;
 
   const { id } = await params;
 

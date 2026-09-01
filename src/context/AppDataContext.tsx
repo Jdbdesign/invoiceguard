@@ -10,6 +10,8 @@ import {
 } from "react";
 import { todayIso, getInvoiceBalance } from "@/lib/utils";
 import { computeInstallmentSchedule, type PaymentPlanFrequency } from "@/lib/paymentPlan";
+import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
+import { PasswordConfirmModal } from "@/components/auth/PasswordConfirmModal";
 import type {
   ActivityEntry,
   Client,
@@ -93,13 +95,25 @@ const DEFAULT_SCHEDULE: ReminderSchedule = {
   finalDays: 45,
 };
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+async function fetchJson<T>(
+  url: string,
+  init?: RequestInit,
+  isRetryAfterConfirm = false
+): Promise<T> {
   const res = await fetch(url, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (
+      !isRetryAfterConfirm &&
+      res.status === 403 &&
+      body.code === "PASSWORD_CONFIRMATION_REQUIRED"
+    ) {
+      await requestPasswordConfirmation();
+      return fetchJson<T>(url, init, true);
+    }
     throw new Error(body.error ?? `Request to ${url} failed (${res.status})`);
   }
   return res.json();
@@ -501,7 +515,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>
+    <AppDataContext.Provider value={value}>
+      {children}
+      <PasswordConfirmModal />
+    </AppDataContext.Provider>
   );
 }
 

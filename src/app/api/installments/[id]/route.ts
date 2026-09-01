@@ -4,6 +4,7 @@ import { mapActivity, mapInstallment } from "@/lib/mappers";
 import { fromIsoDate } from "@/lib/dateSerialization";
 import { formatCurrency, todayIso } from "@/lib/utils";
 import { auth } from "@/auth";
+import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 
 export async function PATCH(
   _request: Request,
@@ -11,6 +12,8 @@ export async function PATCH(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const confirmError = await requireFreshPasswordConfirmation(session.user.id);
+  if (confirmError) return confirmError;
 
   const { id } = await params;
 
