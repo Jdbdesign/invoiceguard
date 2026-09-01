@@ -172,19 +172,22 @@ export function CreatePaymentPlanModal({
                     className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
                   >
                     <div className="min-w-0 flex-1">
-                      <input
-                        type="text"
-                        value={labels[idx] ?? defaultInstallmentLabel(idx + 1)}
-                        onChange={(e) =>
-                          setLabels((prev) => {
-                            const next = resizeLabels(prev, preview.length);
-                            next[idx] = e.target.value;
-                            return next;
-                          })
-                        }
-                        maxLength={MAX_INSTALLMENT_LABEL_LENGTH}
-                        className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-slate-700 transition hover:border-slate-200 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={labels[idx] ?? defaultInstallmentLabel(idx + 1)}
+                          onChange={(e) =>
+                            setLabels((prev) => {
+                              const next = resizeLabels(prev, preview.length);
+                              next[idx] = e.target.value;
+                              return next;
+                            })
+                          }
+                          maxLength={MAX_INSTALLMENT_LABEL_LENGTH}
+                          className="w-full rounded-md border border-dashed border-slate-300 bg-transparent px-1.5 py-0.5 pr-6 text-slate-700 transition hover:border-slate-400 focus:border-solid focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                        <EditPencilIcon className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      </div>
                       <p className="px-1.5 text-xs text-slate-400">
                         Due {formatDate(installment.dueDate)}
                       </p>
@@ -245,5 +248,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1.5 block text-xs font-medium text-slate-600">{label}</span>
       {children}
     </label>
+  );
+}
+
+export function EditPencilIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth={2}
+      stroke="currentColor"
+      className={className}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.862 4.487a1.5 1.5 0 012.122 2.121L8.25 17.342l-3.182.707.707-3.182L16.862 4.487z"
+      />
+    </svg>
   );
 }

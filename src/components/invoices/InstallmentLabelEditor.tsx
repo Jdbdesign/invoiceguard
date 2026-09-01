@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { EditPencilIcon } from "@/components/invoices/CreatePaymentPlanModal";
 import { MAX_INSTALLMENT_LABEL_LENGTH } from "@/lib/paymentPlan";
 
 export function InstallmentLabelEditor({
@@ -22,10 +23,13 @@ export function InstallmentLabelEditor({
           setValue(label);
           setEditing(true);
         }}
-        className="rounded px-1 -mx-1 text-left text-sm text-slate-800 transition hover:bg-slate-100"
+        className="group inline-flex items-center gap-1 rounded px-1 -mx-1 text-left text-sm text-slate-800 transition hover:bg-slate-100"
         title="Click to rename"
       >
-        {label}
+        <span className="border-b border-dashed border-slate-300 transition group-hover:border-slate-400">
+          {label}
+        </span>
+        <EditPencilIcon className="h-3 w-3 flex-shrink-0 text-slate-400" />
       </button>
     );
   }
