@@ -11,6 +11,7 @@ import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { InvoiceFormModal } from "@/components/invoices/InvoiceFormModal";
 import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
 import { ReminderModal } from "@/components/invoices/ReminderModal";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel } from "@/lib/badgeHelpers";
@@ -91,7 +92,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Invoices
@@ -100,15 +101,24 @@ export default function InvoicesPage() {
             {total} invoice{total === 1 ? "" : "s"} across all clients
           </p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-          </svg>
-          Add invoice
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportCsvButton
+            href={
+              statusFilter !== "all"
+                ? `/api/invoices/export?status=${statusFilter}`
+                : "/api/invoices/export"
+            }
+          />
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+            </svg>
+            Add invoice
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
