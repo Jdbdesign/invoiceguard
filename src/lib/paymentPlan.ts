@@ -11,9 +11,24 @@ export const FREQUENCIES: { value: PaymentPlanFrequency; label: string }[] = [
 export const MIN_INSTALLMENTS = 2;
 export const MAX_INSTALLMENTS = 12;
 export const DEFAULT_INSTALLMENTS = 4;
+export const MAX_INSTALLMENT_LABEL_LENGTH = 100;
 
 export function isValidInstallmentCount(n: number): boolean {
   return Number.isInteger(n) && n >= MIN_INSTALLMENTS && n <= MAX_INSTALLMENTS;
+}
+
+export function defaultInstallmentLabel(position: number): string {
+  return `Installment ${position}`;
+}
+
+/** Trims and length-caps a user-supplied installment label, returning null
+ * for anything that ends up blank so the default label applies. Defensive
+ * server-side backstop for the client-side maxLength — never rejects the
+ * request over an over-long paste. */
+export function sanitizeInstallmentLabel(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim().slice(0, MAX_INSTALLMENT_LABEL_LENGTH);
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export function isValidFrequency(value: string): value is PaymentPlanFrequency {

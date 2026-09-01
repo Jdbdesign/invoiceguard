@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/Spinner";
 import { Pagination } from "@/components/ui/Pagination";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
+import { defaultInstallmentLabel } from "@/lib/paymentPlan";
 import { usePaginatedResource } from "@/lib/usePaginatedResource";
 import type { ActivityEntry, Client, Invoice, PaymentPlan, SharedClientSummary } from "@/lib/types";
 import {
@@ -322,6 +323,9 @@ function SharedClientView({
                         </div>
                         <div>
                           <p className="text-sm text-slate-800">
+                            {inst.label || defaultInstallmentLabel(idx + 1)}
+                          </p>
+                          <p className="text-xs text-slate-500">
                             Due {formatDate(inst.dueDate)}
                           </p>
                           {inst.paid && inst.paidDate && (

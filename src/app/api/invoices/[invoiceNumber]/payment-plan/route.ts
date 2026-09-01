@@ -8,6 +8,7 @@ import {
   computeInstallmentSchedule,
   isValidFrequency,
   isValidInstallmentCount,
+  sanitizeInstallmentLabel,
 } from "@/lib/paymentPlan";
 import { auth } from "@/auth";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
@@ -18,6 +19,7 @@ interface PaymentPlanRequestBody {
   installmentCount?: unknown;
   firstDueDate?: unknown;
   frequency?: unknown;
+  labels?: unknown;
 }
 
 // `new Date("YYYY-MM-DDT...")` silently rolls over out-of-range days/months
@@ -54,6 +56,8 @@ export async function POST(
   const installmentCount = Number(body.installmentCount);
   const firstDueDate = String(body.firstDueDate ?? "");
   const frequency = String(body.frequency ?? "");
+  const rawLabels = Array.isArray(body.labels) ? body.labels : [];
+  const labels = rawLabels.map(sanitizeInstallmentLabel);
 
   if (
     !isValidInstallmentCount(installmentCount) ||
@@ -109,6 +113,7 @@ export async function POST(
               amount: installment.amount,
               dueDate: fromIsoDate(installment.dueDate),
               status: "pending",
+              label: labels[index] ?? null,
             })),
           },
         },

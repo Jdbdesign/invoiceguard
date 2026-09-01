@@ -6,9 +6,11 @@ import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import {
   computeInstallmentSchedule,
+  defaultInstallmentLabel,
   DEFAULT_INSTALLMENTS,
   FREQUENCIES,
   isValidInstallmentCount,
+  MAX_INSTALLMENT_LABEL_LENGTH,
   MAX_INSTALLMENTS,
   MIN_INSTALLMENTS,
   type PaymentPlanFrequency,
@@ -36,6 +38,7 @@ export function CreatePaymentPlanModal({
   const [installmentCount, setInstallmentCount] = useState(DEFAULT_INSTALLMENTS);
   const [firstDueDate, setFirstDueDate] = useState(todayIso());
   const [frequency, setFrequency] = useState<PaymentPlanFrequency>("monthly");
+  const [labels, setLabels] = useState<string[]>(() => defaultLabels(DEFAULT_INSTALLMENTS));
   const [submitting, setSubmitting] = useState(false);
 
   // Reset the form fields whenever the modal opens for a (possibly new)
@@ -49,6 +52,14 @@ export function CreatePaymentPlanModal({
       setInstallmentCount(DEFAULT_INSTALLMENTS);
       setFirstDueDate(todayIso());
       setFrequency("monthly");
+      setLabels(defaultLabels(DEFAULT_INSTALLMENTS));
+    }
+  }
+
+  function handleInstallmentCountChange(next: number) {
+    setInstallmentCount(next);
+    if (Number.isInteger(next) && next > 0) {
+      setLabels((prev) => resizeLabels(prev, next));
     }
   }
 
@@ -67,7 +78,12 @@ export function CreatePaymentPlanModal({
     if (!invoice || preview.length === 0) return;
     setSubmitting(true);
     try {
-      await createPaymentPlan(invoice, { installmentCount, firstDueDate, frequency });
+      await createPaymentPlan(invoice, {
+        installmentCount,
+        firstDueDate,
+        frequency,
+        labels: labels.slice(0, preview.length),
+      });
       showToast(`Payment plan created for ${invoice.id}`);
       onClose();
     } catch (error) {
@@ -112,7 +128,7 @@ export function CreatePaymentPlanModal({
                 min={MIN_INSTALLMENTS}
                 max={MAX_INSTALLMENTS}
                 value={installmentCount}
-                onChange={(e) => setInstallmentCount(Number(e.target.value))}
+                onChange={(e) => handleInstallmentCountChange(Number(e.target.value))}
                 className="input"
               />
             </Field>
@@ -153,12 +169,27 @@ export function CreatePaymentPlanModal({
                 {preview.map((installment, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between px-3 py-2 text-sm"
+                    className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
                   >
-                    <span className="text-slate-600">
-                      Installment {idx + 1} · Due {formatDate(installment.dueDate)}
-                    </span>
-                    <span className="font-medium tabular-nums text-slate-900">
+                    <div className="min-w-0 flex-1">
+                      <input
+                        type="text"
+                        value={labels[idx] ?? defaultInstallmentLabel(idx + 1)}
+                        onChange={(e) =>
+                          setLabels((prev) => {
+                            const next = resizeLabels(prev, preview.length);
+                            next[idx] = e.target.value;
+                            return next;
+                          })
+                        }
+                        maxLength={MAX_INSTALLMENT_LABEL_LENGTH}
+                        className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-slate-700 transition hover:border-slate-200 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      />
+                      <p className="px-1.5 text-xs text-slate-400">
+                        Due {formatDate(installment.dueDate)}
+                      </p>
+                    </div>
+                    <span className="flex-shrink-0 font-medium tabular-nums text-slate-900">
                       {formatCurrency(installment.amount, client?.currency)}
                     </span>
                   </div>
@@ -187,6 +218,16 @@ export function CreatePaymentPlanModal({
       )}
     </Modal>
   );
+}
+
+function defaultLabels(count: number): string[] {
+  return Array.from({ length: count }, (_, i) => defaultInstallmentLabel(i + 1));
+}
+
+/** Resizes a labels array to `count`, preserving custom text at overlapping
+ * indices and filling any new slots with their default label. */
+function resizeLabels(prev: string[], count: number): string[] {
+  return Array.from({ length: count }, (_, i) => prev[i] ?? defaultInstallmentLabel(i + 1));
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {

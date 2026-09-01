@@ -45,6 +45,7 @@ type InstallmentRow = {
   dueDate: Date;
   paidDate: Date | null;
   status: string;
+  label: string | null;
 };
 type PaymentPlanRow = {
   id: string;
@@ -102,6 +103,7 @@ export function mapInstallment(i: InstallmentRow): Installment {
     dueDate: toIsoDate(i.dueDate),
     paid: i.status === "paid",
     paidDate: i.paidDate ? toIsoDate(i.paidDate) : undefined,
+    label: i.label ?? undefined,
   };
 }
 

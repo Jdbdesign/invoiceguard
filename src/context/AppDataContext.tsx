@@ -56,6 +56,7 @@ interface CreatePaymentPlanInput {
   installmentCount: number;
   firstDueDate: string;
   frequency: PaymentPlanFrequency;
+  labels?: string[];
 }
 
 interface AppDataContextValue {
@@ -85,6 +86,11 @@ interface AppDataContextValue {
     draft: { subject: string; body: string; stage: ReminderStage | null }
   ) => Promise<void>;
   toggleInstallmentPaid: (planId: string, installmentId: string) => Promise<void>;
+  updateInstallmentLabel: (
+    planId: string,
+    installmentId: string,
+    label: string
+  ) => Promise<void>;
   settlePaymentPlan: (invoiceId: string) => Promise<void>;
   updateReminderSchedule: (schedule: ReminderSchedule) => Promise<void>;
   updatePasswordReconfirmMinutes: (minutes: number) => Promise<void>;
@@ -342,6 +348,62 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateInstallmentLabel = useCallback(
+    async (planId: string, installmentId: string, label: string) => {
+      let previous: PaymentPlan["installments"][number] | undefined;
+      setPaymentPlans((prev) =>
+        prev.map((plan) =>
+          plan.id !== planId
+            ? plan
+            : {
+                ...plan,
+                installments: plan.installments.map((inst) => {
+                  if (inst.id !== installmentId) return inst;
+                  previous = inst;
+                  return { ...inst, label: label.trim() || undefined };
+                }),
+              }
+        )
+      );
+      try {
+        const result = await fetchJson<{
+          installment: PaymentPlan["installments"][number];
+          activity: ActivityEntry | null;
+        }>(`/api/installments/${installmentId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ label }),
+        });
+        setPaymentPlans((prev) =>
+          prev.map((plan) =>
+            plan.id !== planId
+              ? plan
+              : {
+                  ...plan,
+                  installments: plan.installments.map((inst) =>
+                    inst.id === installmentId ? result.installment : inst
+                  ),
+                }
+          )
+        );
+      } catch (error) {
+        setPaymentPlans((prev) =>
+          prev.map((plan) =>
+            plan.id !== planId
+              ? plan
+              : {
+                  ...plan,
+                  installments: plan.installments.map((inst) =>
+                    inst.id === installmentId && previous ? previous : inst
+                  ),
+                }
+          )
+        );
+        throw error;
+      }
+    },
+    []
+  );
+
   const settlePaymentPlan = useCallback(async (invoiceId: string) => {
     let previousPlan: PaymentPlan | undefined;
     let previousInvoice: Invoice | undefined;
@@ -425,6 +487,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           amount: installment.amount,
           dueDate: installment.dueDate,
           paid: false,
+          label: input.labels?.[index],
         })),
       };
 
@@ -503,6 +566,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       draftReminder,
       sendReminder,
       toggleInstallmentPaid,
+      updateInstallmentLabel,
       settlePaymentPlan,
       updateReminderSchedule,
       updatePasswordReconfirmMinutes,
@@ -527,6 +591,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       draftReminder,
       sendReminder,
       toggleInstallmentPaid,
+      updateInstallmentLabel,
       settlePaymentPlan,
       updateReminderSchedule,
       updatePasswordReconfirmMinutes,
