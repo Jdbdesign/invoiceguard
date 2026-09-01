@@ -17,6 +17,9 @@ const eslintConfig = defineConfig([
     "**/out/**",
     "**/build/**",
     "**/next-env.d.ts",
+    // Stray local/scratch files under worktree roots (never committed, not
+    // part of any worktree's actual source) shouldn't fail lint.
+    ".claude/worktrees/*/*.js",
   ]),
 ]);
 
