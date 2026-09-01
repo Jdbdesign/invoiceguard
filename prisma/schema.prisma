@@ -15,6 +15,7 @@ model User {
   clients             Client[]
   settings            Settings?
   passwordResetTokens PasswordResetToken[]
+  shareLinks          ShareLink[]
 }
 
 model PasswordResetToken {
@@ -42,6 +43,7 @@ model Client {
   owner        User          @relation(fields: [ownerId], references: [id])
   invoices     Invoice[]
   activityLogs ActivityLog[]
+  shareLinks   ShareLink[]
 }
 
 model Invoice {
@@ -94,6 +96,22 @@ model Installment {
   status            String    @default("pending")
 
   paymentPlan PaymentPlan @relation(fields: [paymentPlanId], references: [id])
+}
+
+model ShareLink {
+  id             String    @id @default(cuid())
+  ownerId        String
+  clientId       String
+  tokenHash      String    @unique
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  lastAccessedAt DateTime?
+
+  owner  User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, clientId])
 }
 
 model Settings {

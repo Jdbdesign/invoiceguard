@@ -15,7 +15,12 @@ const PUBLIC_PATHS = new Set([
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.has(pathname) || pathname.startsWith("/api/auth/")) {
+  if (
+    PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/share/") ||
+    pathname.startsWith("/api/share/")
+  ) {
     return NextResponse.next();
   }
 

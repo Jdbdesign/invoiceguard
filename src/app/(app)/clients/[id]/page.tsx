@@ -10,6 +10,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
 import { ReminderModal } from "@/components/invoices/ReminderModal";
+import { ShareLinkModal } from "@/components/clients/ShareLinkModal";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
@@ -77,6 +78,7 @@ export default function ClientDetailPage() {
   } | null>(null);
   const [creatingPlanFor, setCreatingPlanFor] = useState<Invoice | null>(null);
   const [draftingReminderFor, setDraftingReminderFor] = useState<string | null>(null);
+  const [sharingClient, setSharingClient] = useState(false);
 
   const client = clients.find((c) => c.id === params.id);
 
@@ -105,12 +107,23 @@ export default function ClientDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/clients" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
-        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" strokeWidth={2.2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
-        </svg>
-        All clients
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/clients" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" strokeWidth={2.2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
+          </svg>
+          All clients
+        </Link>
+        <button
+          onClick={() => setSharingClient(true)}
+          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.68 13.34l6.65 3.83m-.01-10.34L8.68 10.66M18 6a2 2 0 11-4 0 2 2 0 014 0zm0 12a2 2 0 11-4 0 2 2 0 014 0zM8 12a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          Share
+        </button>
+      </div>
 
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -467,6 +480,13 @@ export default function ClientDetailPage() {
         onClose={() => setDraftingReminderFor(null)}
         invoiceId={draftingReminderFor}
         onSent={refetchActivity}
+      />
+
+      <ShareLinkModal
+        open={sharingClient}
+        onClose={() => setSharingClient(false)}
+        clientId={client.id}
+        clientName={client.name}
       />
     </div>
   );
