@@ -57,14 +57,38 @@ export async function PATCH(
   }
 
   const nowPaid = installment.status !== "paid";
+  const invoice = installment.paymentPlan.invoice;
 
-  const updated = await prisma.installment.update({
-    where: { id },
-    data: {
-      status: nowPaid ? "paid" : "pending",
-      paidDate: nowPaid ? fromIsoDate(todayIso()) : null,
-    },
-  });
+  // Marking an installment paid/unpaid moves money on the parent invoice
+  // too — Invoice.balance must stay in lockstep or every "total owed"
+  // figure derived from it (client detail, clients list, CSV export)
+  // silently goes stale. Paying off the last installment completes the
+  // invoice, matching how mark-paid/settle-payment-plan pair balance: 0
+  // with status: "paid"; undoing that reverses both together.
+  const newBalance = Math.max(
+    0,
+    invoice.balance + (nowPaid ? -installment.amount : installment.amount)
+  );
+  let newStatus = invoice.status;
+  if (nowPaid && newBalance <= 0) {
+    newStatus = "paid";
+  } else if (!nowPaid && invoice.status === "paid" && newBalance > 0) {
+    newStatus = "payment_plan";
+  }
+
+  const [updated] = await prisma.$transaction([
+    prisma.installment.update({
+      where: { id },
+      data: {
+        status: nowPaid ? "paid" : "pending",
+        paidDate: nowPaid ? fromIsoDate(todayIso()) : null,
+      },
+    }),
+    prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { balance: newBalance, status: newStatus },
+    }),
+  ]);
 
   let activity = null;
   if (nowPaid) {
