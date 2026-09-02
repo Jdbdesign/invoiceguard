@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "tsx prisma/guard-migrate-dev.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:backup": "tsx prisma/backup-before-auth-migration.ts",
     "db:backfill-owner": "tsx prisma/backfill-default-owner.ts",
