@@ -289,28 +289,59 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const toggleInstallmentPaid = useCallback(
     async (planId: string, installmentId: string) => {
-      let previous: PaymentPlan["installments"][number] | undefined;
+      let previousInstallment: PaymentPlan["installments"][number] | undefined;
+      let previousInvoice: Invoice | undefined;
+      let invoiceId: string | undefined;
+
       setPaymentPlans((prev) =>
-        prev.map((plan) =>
-          plan.id !== planId
-            ? plan
-            : {
-                ...plan,
-                installments: plan.installments.map((inst) => {
-                  if (inst.id !== installmentId) return inst;
-                  previous = inst;
-                  return {
-                    ...inst,
-                    paid: !inst.paid,
-                    paidDate: !inst.paid ? todayIso() : undefined,
-                  };
-                }),
-              }
-        )
+        prev.map((plan) => {
+          if (plan.id !== planId) return plan;
+          invoiceId = plan.invoiceId;
+          return {
+            ...plan,
+            installments: plan.installments.map((inst) => {
+              if (inst.id !== installmentId) return inst;
+              previousInstallment = inst;
+              return {
+                ...inst,
+                paid: !inst.paid,
+                paidDate: !inst.paid ? todayIso() : undefined,
+              };
+            }),
+          };
+        })
       );
+
+      // The invoice's balance/status move in lockstep with the installment
+      // (see the PATCH route) — mirror that here so "Total owed" and the
+      // invoice list don't wait for a refetch to catch up, matching how
+      // markInvoicePaid/settlePaymentPlan already keep both in sync.
+      if (invoiceId && previousInstallment) {
+        const amount = previousInstallment.amount;
+        const nowPaid = !previousInstallment.paid;
+        setInvoices((prev) =>
+          prev.map((inv) => {
+            if (inv.id !== invoiceId) return inv;
+            previousInvoice = inv;
+            const newAmountPaid = Math.max(
+              0,
+              Math.min(inv.amount, inv.amountPaid + (nowPaid ? amount : -amount))
+            );
+            const newStatus =
+              newAmountPaid >= inv.amount
+                ? "paid"
+                : inv.status === "paid"
+                  ? "payment_plan"
+                  : inv.status;
+            return { ...inv, amountPaid: newAmountPaid, status: newStatus };
+          })
+        );
+      }
+
       try {
         const result = await fetchJson<{
           installment: PaymentPlan["installments"][number];
+          invoice: Invoice;
           activity: ActivityEntry | null;
         }>(`/api/installments/${installmentId}`, { method: "PATCH" });
 
@@ -326,6 +357,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                 }
           )
         );
+        setInvoices((prev) =>
+          prev.map((inv) => (inv.id === result.invoice.id ? result.invoice : inv))
+        );
         if (result.activity) {
           setActivityLog((prev) => [result.activity as ActivityEntry, ...prev]);
         }
@@ -337,11 +371,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
               : {
                   ...plan,
                   installments: plan.installments.map((inst) =>
-                    inst.id === installmentId && previous ? previous : inst
+                    inst.id === installmentId && previousInstallment ? previousInstallment : inst
                   ),
                 }
           )
         );
+        if (previousInvoice) {
+          const restored = previousInvoice;
+          setInvoices((prev) =>
+            prev.map((inv) => (inv.id === restored.id ? restored : inv))
+          );
+        }
         throw error;
       }
     },

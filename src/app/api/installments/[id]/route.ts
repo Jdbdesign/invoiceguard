@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { mapActivity, mapInstallment } from "@/lib/mappers";
+import { mapActivity, mapInstallment, mapInvoice } from "@/lib/mappers";
 import { fromIsoDate } from "@/lib/dateSerialization";
 import { formatCurrency, todayIso } from "@/lib/utils";
 import { defaultInstallmentLabel, sanitizeInstallmentLabel } from "@/lib/paymentPlan";
@@ -76,7 +76,7 @@ export async function PATCH(
     newStatus = "payment_plan";
   }
 
-  const [updated] = await prisma.$transaction([
+  const [updated, updatedInvoice] = await prisma.$transaction([
     prisma.installment.update({
       where: { id },
       data: {
@@ -117,6 +117,7 @@ export async function PATCH(
 
   return NextResponse.json({
     installment: mapInstallment(updated),
+    invoice: mapInvoice(updatedInvoice),
     activity,
   });
 }
