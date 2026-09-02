@@ -299,7 +299,7 @@ function SharedClientView({
             return (
               <Card key={plan.id}>
                 <CardHeader
-                  title={`Payment plan ${plan.id}`}
+                  title="Payment plan"
                   subtitle={`${formatCurrency(plan.totalAmount, client.currency)} total · ${formatCurrency(
                     remaining,
                     client.currency
