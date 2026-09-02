@@ -11,9 +11,11 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanModal";
 import { ReminderModal } from "@/components/invoices/ReminderModal";
 import { ShareLinkModal } from "@/components/clients/ShareLinkModal";
+import { InstallmentLabelEditor } from "@/components/invoices/InstallmentLabelEditor";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
+import { defaultInstallmentLabel } from "@/lib/paymentPlan";
 import { usePaginatedResource } from "@/lib/usePaginatedResource";
 import type { ActivityEntry, Installment, Invoice } from "@/lib/types";
 import {
@@ -38,6 +40,7 @@ export default function ClientDetailPage() {
     loading,
     markInvoicePaid,
     toggleInstallmentPaid,
+    updateInstallmentLabel,
     settlePaymentPlan,
   } = useAppData();
   const { showToast } = useToast();
@@ -257,7 +260,7 @@ export default function ClientDetailPage() {
             return (
               <Card key={plan.id}>
                 <CardHeader
-                  title={`Payment plan ${plan.id}`}
+                  title="Payment plan"
                   subtitle={`${formatCurrency(plan.totalAmount, client.currency)} total · ${formatCurrency(
                     remaining,
                     client.currency
@@ -296,8 +299,16 @@ export default function ClientDetailPage() {
                         >
                           {idx + 1}
                         </div>
-                        <div>
-                          <p className="text-sm text-slate-800">
+                        <div className="min-w-0">
+                          <InstallmentLabelEditor
+                            label={inst.label || defaultInstallmentLabel(idx + 1)}
+                            onSave={(label) =>
+                              updateInstallmentLabel(plan.id, inst.id, label).catch(() =>
+                                showToast("Failed to rename installment")
+                              )
+                            }
+                          />
+                          <p className="text-xs text-slate-500">
                             Due {formatDate(inst.dueDate)}
                           </p>
                           {inst.paid && inst.paidDate && (

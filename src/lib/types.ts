@@ -43,6 +43,7 @@ export interface Installment {
   dueDate: string;
   paid: boolean;
   paidDate?: string;
+  label?: string;
 }
 
 export interface PaymentPlan {

@@ -94,6 +94,7 @@ model Installment {
   dueDate           DateTime
   paidDate          DateTime?
   status            String    @default("pending")
+  label             String?
 
   paymentPlan PaymentPlan @relation(fields: [paymentPlanId], references: [id])
 }
