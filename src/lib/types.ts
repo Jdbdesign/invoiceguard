@@ -35,6 +35,7 @@ export interface Invoice {
   dueDate: string;
   status: InvoiceStatus;
   description: string;
+  receiptSentAt?: string;
 }
 
 export interface Installment {
@@ -60,7 +61,8 @@ export type ActivityType =
   | "client_reply"
   | "payment_received"
   | "plan_created"
-  | "installment_paid";
+  | "installment_paid"
+  | "receipt_sent";
 
 export interface ActivityEntry {
   id: string;
@@ -80,4 +82,5 @@ export interface ReminderSchedule {
 
 export interface AppSettings extends ReminderSchedule {
   passwordReconfirmMinutes: number;
+  sendReceiptImmediately: boolean;
 }

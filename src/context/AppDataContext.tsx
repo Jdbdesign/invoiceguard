@@ -66,6 +66,7 @@ interface AppDataContextValue {
   activityLog: ActivityEntry[];
   reminderSchedule: ReminderSchedule;
   passwordReconfirmMinutes: number;
+  sendReceiptImmediately: boolean;
   loading: boolean;
   addClient: (input: NewClientInput) => Promise<Client>;
   addInvoice: (input: NewInvoiceInput) => Promise<Invoice>;
@@ -78,6 +79,7 @@ interface AppDataContextValue {
     input: CreatePaymentPlanInput
   ) => Promise<PaymentPlan>;
   markInvoicePaid: (invoiceId: string) => Promise<void>;
+  sendReceipt: (invoiceId: string) => Promise<void>;
   draftReminder: (
     invoiceId: string
   ) => Promise<{ subject: string; body: string; stage: ReminderStage | null }>;
@@ -94,6 +96,7 @@ interface AppDataContextValue {
   settlePaymentPlan: (invoiceId: string) => Promise<void>;
   updateReminderSchedule: (schedule: ReminderSchedule) => Promise<void>;
   updatePasswordReconfirmMinutes: (minutes: number) => Promise<void>;
+  updateSendReceiptImmediately: (enabled: boolean) => Promise<void>;
   runDailyCheck: () => Promise<{ remindersSent: number }>;
 }
 
@@ -139,6 +142,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [passwordReconfirmMinutes, setPasswordReconfirmMinutes] = useState<number>(
     PASSWORD_RECONFIRM_DEFAULT_MINUTES
   );
+  const [sendReceiptImmediately, setSendReceiptImmediately] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -160,6 +164,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setActivityLog(activityRes);
         setReminderSchedule(settingsRes);
         setPasswordReconfirmMinutes(settingsRes.passwordReconfirmMinutes);
+        setSendReceiptImmediately(settingsRes.sendReceiptImmediately);
       } catch (error) {
         console.error("Failed to load InvoiceGuard data", error);
       } finally {
@@ -247,22 +252,36 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       );
     });
     try {
-      const result = await fetchJson<{ invoice: Invoice; activity: ActivityEntry | null }>(
-        `/api/invoices/${invoiceId}/mark-paid`,
-        { method: "POST" }
-      );
+      const result = await fetchJson<{
+        invoice: Invoice;
+        activity: ActivityEntry | null;
+        receiptActivity: ActivityEntry | null;
+      }>(`/api/invoices/${invoiceId}/mark-paid`, { method: "POST" });
       setInvoices((prev) =>
         prev.map((inv) => (inv.id === invoiceId ? result.invoice : inv))
       );
-      if (result.activity) {
-        setActivityLog((prev) => [result.activity as ActivityEntry, ...prev]);
-      }
+      setActivityLog((prev) => [
+        ...(result.receiptActivity ? [result.receiptActivity] : []),
+        ...(result.activity ? [result.activity] : []),
+        ...prev,
+      ]);
     } catch (error) {
       setInvoices((prev) =>
         prev.map((inv) => (inv.id === invoiceId && previous ? previous : inv))
       );
       throw error;
     }
+  }, []);
+
+  const sendReceipt = useCallback(async (invoiceId: string) => {
+    const result = await fetchJson<{ invoice: Invoice; activity: ActivityEntry }>(
+      `/api/invoices/${invoiceId}/send-receipt`,
+      { method: "POST" }
+    );
+    setInvoices((prev) =>
+      prev.map((inv) => (inv.id === invoiceId ? result.invoice : inv))
+    );
+    setActivityLog((prev) => [result.activity, ...prev]);
   }, []);
 
   const draftReminder = useCallback(async (invoiceId: string) => {
@@ -343,6 +362,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           installment: PaymentPlan["installments"][number];
           invoice: Invoice;
           activity: ActivityEntry | null;
+          receiptActivity: ActivityEntry | null;
         }>(`/api/installments/${installmentId}`, { method: "PATCH" });
 
         setPaymentPlans((prev) =>
@@ -360,9 +380,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setInvoices((prev) =>
           prev.map((inv) => (inv.id === result.invoice.id ? result.invoice : inv))
         );
-        if (result.activity) {
-          setActivityLog((prev) => [result.activity as ActivityEntry, ...prev]);
-        }
+        setActivityLog((prev) => [
+          ...(result.receiptActivity ? [result.receiptActivity] : []),
+          ...(result.activity ? [result.activity] : []),
+          ...prev,
+        ]);
       } catch (error) {
         setPaymentPlans((prev) =>
           prev.map((plan) =>
@@ -475,6 +497,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         installments: PaymentPlan["installments"];
         invoice: Invoice;
         activity: ActivityEntry;
+        receiptActivity: ActivityEntry | null;
       }>(`/api/invoices/${invoiceId}/settle-payment-plan`, { method: "POST" });
 
       const settledPlanId = previousPlan?.id;
@@ -488,7 +511,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setInvoices((prev) =>
         prev.map((inv) => (inv.id === result.invoice.id ? result.invoice : inv))
       );
-      setActivityLog((prev) => [result.activity, ...prev]);
+      setActivityLog((prev) => [
+        ...(result.receiptActivity ? [result.receiptActivity] : []),
+        result.activity,
+        ...prev,
+      ]);
     } catch (error) {
       const restoredPlan = previousPlan;
       const restoredInvoice = previousInvoice;
@@ -574,6 +601,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setPasswordReconfirmMinutes(updated.passwordReconfirmMinutes);
   }, []);
 
+  const updateSendReceiptImmediately = useCallback(async (enabled: boolean) => {
+    const updated = await fetchJson<AppSettings>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ sendReceiptImmediately: enabled }),
+    });
+    setSendReceiptImmediately(updated.sendReceiptImmediately);
+  }, []);
+
   const runDailyCheck = useCallback(async () => {
     const result = await fetchJson<{ remindersSent: number }>(
       "/api/cron/check-overdue",
@@ -594,6 +629,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       activityLog,
       reminderSchedule,
       passwordReconfirmMinutes,
+      sendReceiptImmediately,
       loading,
       addClient,
       addInvoice,
@@ -603,6 +639,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deleteInvoice,
       createPaymentPlan,
       markInvoicePaid,
+      sendReceipt,
       draftReminder,
       sendReminder,
       toggleInstallmentPaid,
@@ -610,6 +647,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       settlePaymentPlan,
       updateReminderSchedule,
       updatePasswordReconfirmMinutes,
+      updateSendReceiptImmediately,
       runDailyCheck,
     }),
     [
@@ -619,6 +657,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       activityLog,
       reminderSchedule,
       passwordReconfirmMinutes,
+      sendReceiptImmediately,
       loading,
       addClient,
       addInvoice,
@@ -628,6 +667,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deleteInvoice,
       createPaymentPlan,
       markInvoicePaid,
+      sendReceipt,
       draftReminder,
       sendReminder,
       toggleInstallmentPaid,
@@ -635,6 +675,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       settlePaymentPlan,
       updateReminderSchedule,
       updatePasswordReconfirmMinutes,
+      updateSendReceiptImmediately,
       runDailyCheck,
     ]
   );

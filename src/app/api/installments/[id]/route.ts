@@ -6,6 +6,8 @@ import { formatCurrency, todayIso } from "@/lib/utils";
 import { defaultInstallmentLabel, sanitizeInstallmentLabel } from "@/lib/paymentPlan";
 import { auth } from "@/auth";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
+import { getOrCreateSettings } from "@/lib/settings";
+import { sendPaymentReceipt } from "@/lib/receipts";
 
 interface InstallmentPatchBody {
   label?: unknown;
@@ -115,9 +117,34 @@ export async function PATCH(
     activity = mapActivity(created);
   }
 
+  // Distinct from the installment_paid activity above, which fires on every
+  // partial payment — a receipt must only go out for the specific payment
+  // that brings the invoice's balance to zero, never on every installment.
+  let finalInvoice = updatedInvoice;
+  let receiptActivity = null;
+  const invoiceJustFullyPaid = nowPaid && newBalance <= 0;
+  if (invoiceJustFullyPaid) {
+    const settings = await getOrCreateSettings(session.user.id);
+    if (settings.sendReceiptImmediately && !updatedInvoice.receiptSentAt) {
+      const receiptResult = await sendPaymentReceipt({
+        id: updatedInvoice.id,
+        clientId: updatedInvoice.clientId,
+        invoiceNumber: updatedInvoice.invoiceNumber,
+        description: updatedInvoice.description,
+        amount: updatedInvoice.amount,
+        client: installment.paymentPlan.invoice.client,
+      });
+      if (receiptResult) {
+        finalInvoice = receiptResult.invoice;
+        receiptActivity = mapActivity(receiptResult.activity);
+      }
+    }
+  }
+
   return NextResponse.json({
     installment: mapInstallment(updated),
-    invoice: mapInvoice(updatedInvoice),
+    invoice: mapInvoice(finalInvoice),
     activity,
+    receiptActivity,
   });
 }

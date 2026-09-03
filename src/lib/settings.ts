@@ -11,6 +11,7 @@ export async function getOrCreateSettings(ownerId: string) {
       firmReminderDays: 15,
       finalNoticeDays: 45,
       passwordReconfirmMinutes: PASSWORD_RECONFIRM_DEFAULT_MINUTES,
+      sendReceiptImmediately: false,
     },
   });
 }
