@@ -68,7 +68,7 @@ export async function POST(
   let finalInvoice = updated;
   let receiptActivity = null;
   const settings = await getOrCreateSettings(session.user.id);
-  if (settings.sendReceiptImmediately) {
+  if (settings.sendReceiptImmediately && !updated.receiptSentAt) {
     const receiptResult = await sendPaymentReceipt({
       id: updated.id,
       clientId: updated.clientId,

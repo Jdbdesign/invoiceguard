@@ -125,7 +125,7 @@ export async function PATCH(
   const invoiceJustFullyPaid = nowPaid && newBalance <= 0;
   if (invoiceJustFullyPaid) {
     const settings = await getOrCreateSettings(session.user.id);
-    if (settings.sendReceiptImmediately) {
+    if (settings.sendReceiptImmediately && !updatedInvoice.receiptSentAt) {
       const receiptResult = await sendPaymentReceipt({
         id: updatedInvoice.id,
         clientId: updatedInvoice.clientId,
