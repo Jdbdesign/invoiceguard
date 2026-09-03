@@ -32,7 +32,7 @@ export function Sidebar({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-full w-60 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-60 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
