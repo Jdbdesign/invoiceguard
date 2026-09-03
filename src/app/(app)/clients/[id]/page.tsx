@@ -39,6 +39,7 @@ export default function ClientDetailPage() {
     paymentPlans,
     loading,
     markInvoicePaid,
+    sendReceipt,
     toggleInstallmentPaid,
     updateInstallmentLabel,
     settlePaymentPlan,
@@ -80,6 +81,7 @@ export default function ClientDetailPage() {
     currency: string;
   } | null>(null);
   const [creatingPlanFor, setCreatingPlanFor] = useState<Invoice | null>(null);
+  const [confirmingReceiptFor, setConfirmingReceiptFor] = useState<Invoice | null>(null);
   const [draftingReminderFor, setDraftingReminderFor] = useState<string | null>(null);
   const [sharingClient, setSharingClient] = useState(false);
 
@@ -198,7 +200,9 @@ export default function ClientDetailPage() {
                         </p>
                         <Badge variant={invBadge.variant}>{invBadge.label}</Badge>
                       </div>
-                      {(invoicePlanRemaining > 0 || invoice.status !== "paid") && (
+                      {(invoicePlanRemaining > 0 ||
+                        invoice.status !== "paid" ||
+                        !invoice.receiptSentAt) && (
                         <div className="flex flex-col gap-1.5">
                           {invoice.status !== "paid" && !invoicePlan && (
                             <button
@@ -243,6 +247,14 @@ export default function ClientDetailPage() {
                               className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                             >
                               Draft reminder
+                            </button>
+                          )}
+                          {invoice.status === "paid" && !invoice.receiptSentAt && (
+                            <button
+                              onClick={() => setConfirmingReceiptFor(invoice)}
+                              className="whitespace-nowrap rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700"
+                            >
+                              Send receipt
                             </button>
                           )}
                         </div>
@@ -476,6 +488,26 @@ export default function ClientDetailPage() {
             showToast("Failed to settle remaining balance");
           } finally {
             setConfirmingSettlePlan(null);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingReceiptFor !== null}
+        onClose={() => setConfirmingReceiptFor(null)}
+        title="Send payment receipt?"
+        message={`Email a payment receipt for ${confirmingReceiptFor?.id} to ${client.email}?`}
+        confirmLabel="Send receipt"
+        onConfirm={async () => {
+          if (!confirmingReceiptFor) return;
+          try {
+            await sendReceipt(confirmingReceiptFor.id);
+            showToast(`Receipt sent for ${confirmingReceiptFor.id}`);
+            refetchActivity();
+          } catch {
+            showToast(`Failed to send receipt for ${confirmingReceiptFor.id}`);
+          } finally {
+            setConfirmingReceiptFor(null);
           }
         }}
       />

@@ -28,6 +28,7 @@ type InvoiceRow = {
   dueDate: Date;
   status: string;
   createdAt: Date;
+  receiptSentAt: Date | null;
 };
 type ActivityRow = {
   id: string;
@@ -59,6 +60,7 @@ type SettingsRow = {
   firmReminderDays: number;
   finalNoticeDays: number;
   passwordReconfirmMinutes: number;
+  sendReceiptImmediately: boolean;
 };
 
 export function mapClient(c: ClientRow): Client {
@@ -81,6 +83,7 @@ export function mapInvoice(inv: InvoiceRow): Invoice {
     dueDate: toIsoDate(inv.dueDate),
     status: inv.status as InvoiceStatus,
     description: inv.description,
+    receiptSentAt: inv.receiptSentAt ? toIsoDate(inv.receiptSentAt) : undefined,
   };
 }
 
@@ -127,5 +130,6 @@ export function mapSettings(s: SettingsRow): AppSettings {
     firmDays: s.firmReminderDays,
     finalDays: s.finalNoticeDays,
     passwordReconfirmMinutes: s.passwordReconfirmMinutes,
+    sendReceiptImmediately: s.sendReceiptImmediately,
   };
 }

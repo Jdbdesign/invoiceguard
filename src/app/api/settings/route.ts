@@ -26,6 +26,7 @@ export async function PUT(request: Request) {
     firmReminderDays?: number;
     finalNoticeDays?: number;
     passwordReconfirmMinutes?: number;
+    sendReceiptImmediately?: boolean;
   } = {};
 
   const hasSchedule =
@@ -71,6 +72,10 @@ export async function PUT(request: Request) {
     }
 
     data.passwordReconfirmMinutes = passwordReconfirmMinutes;
+  }
+
+  if (body.sendReceiptImmediately !== undefined) {
+    data.sendReceiptImmediately = Boolean(body.sendReceiptImmediately);
   }
 
   await getOrCreateSettings(session.user.id);

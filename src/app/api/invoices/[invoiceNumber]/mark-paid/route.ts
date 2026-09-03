@@ -4,6 +4,8 @@ import { mapActivity, mapInvoice } from "@/lib/mappers";
 import { formatCurrency } from "@/lib/utils";
 import { auth } from "@/auth";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
+import { getOrCreateSettings } from "@/lib/settings";
+import { sendPaymentReceipt } from "@/lib/receipts";
 
 export async function POST(
   _request: Request,
@@ -63,8 +65,27 @@ export async function POST(
     include: { invoice: true },
   });
 
+  let finalInvoice = updated;
+  let receiptActivity = null;
+  const settings = await getOrCreateSettings(session.user.id);
+  if (settings.sendReceiptImmediately) {
+    const receiptResult = await sendPaymentReceipt({
+      id: updated.id,
+      clientId: updated.clientId,
+      invoiceNumber: updated.invoiceNumber,
+      description: updated.description,
+      amount: updated.amount,
+      client: invoice.client,
+    });
+    if (receiptResult) {
+      finalInvoice = receiptResult.invoice;
+      receiptActivity = mapActivity(receiptResult.activity);
+    }
+  }
+
   return NextResponse.json({
-    invoice: mapInvoice(updated),
+    invoice: mapInvoice(finalInvoice),
     activity: mapActivity(activity),
+    receiptActivity,
   });
 }

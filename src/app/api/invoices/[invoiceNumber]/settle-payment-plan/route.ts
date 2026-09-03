@@ -5,6 +5,8 @@ import { fromIsoDate } from "@/lib/dateSerialization";
 import { formatCurrency, todayIso } from "@/lib/utils";
 import { auth } from "@/auth";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
+import { getOrCreateSettings } from "@/lib/settings";
+import { sendPaymentReceipt } from "@/lib/receipts";
 
 export async function POST(
   _request: Request,
@@ -72,9 +74,28 @@ export async function POST(
     }),
   ]);
 
+  let finalInvoice = updatedInvoice;
+  let receiptActivity = null;
+  const settings = await getOrCreateSettings(session.user.id);
+  if (settings.sendReceiptImmediately) {
+    const receiptResult = await sendPaymentReceipt({
+      id: updatedInvoice.id,
+      clientId: updatedInvoice.clientId,
+      invoiceNumber: updatedInvoice.invoiceNumber,
+      description: updatedInvoice.description,
+      amount: updatedInvoice.amount,
+      client: invoice.client,
+    });
+    if (receiptResult) {
+      finalInvoice = receiptResult.invoice;
+      receiptActivity = mapActivity(receiptResult.activity);
+    }
+  }
+
   return NextResponse.json({
     installments: installmentRows.map(mapInstallment),
-    invoice: mapInvoice(updatedInvoice),
+    invoice: mapInvoice(finalInvoice),
     activity: mapActivity(activity),
+    receiptActivity,
   });
 }

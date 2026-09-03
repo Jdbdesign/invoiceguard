@@ -9,6 +9,8 @@ export function activityIconVariant(type: ActivityType): string {
       return "bg-blue-50 text-blue-600";
     case "plan_created":
       return "bg-indigo-50 text-indigo-600";
+    case "receipt_sent":
+      return "bg-teal-50 text-teal-600";
     case "reminder_sent":
     default:
       return "bg-amber-50 text-amber-600";
@@ -54,6 +56,13 @@ export function ActivityIcon({
           <rect x="4" y="4.5" width="16" height="15" rx="1.5" />
           <path strokeLinecap="round" d="M8 3v3M16 3v3M4 9.5h16" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 15l2 2 4-4" />
+        </svg>
+      );
+    case "receipt_sent":
+      return (
+        <svg {...common}>
+          <path d="M6 3.5h12v17l-2.5-1.5-2.5 1.5-2.5-1.5-2.5 1.5-2-1.5v-15z" />
+          <path strokeLinecap="round" d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" />
         </svg>
       );
     case "reminder_sent":

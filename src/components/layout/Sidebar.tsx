@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/clients", label: "Clients", icon: ClientsIcon },
   { href: "/invoices", label: "Invoices", icon: InvoicesIcon },
+  { href: "/templates", label: "Templates", icon: TemplatesIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -130,6 +131,15 @@ function InvoicesIcon(props: React.SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" {...props}>
       <path d="M6 3.5h9l3.5 3.5V20a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V4a.5.5 0 01.5-.5z" />
       <path strokeLinecap="round" d="M8.5 10h7M8.5 13.3h7M8.5 16.6h4.5" />
+    </svg>
+  );
+}
+
+function TemplatesIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" {...props}>
+      <rect x="4" y="3.5" width="16" height="17" rx="1.5" />
+      <path strokeLinecap="round" d="M7.5 8h9M7.5 11.5h9M7.5 15h5.5" />
     </svg>
   );
 }

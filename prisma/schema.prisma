@@ -55,7 +55,8 @@ model Invoice {
   balance       Float
   dueDate       DateTime
   status        String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
+  receiptSentAt DateTime?
 
   client       Client        @relation(fields: [clientId], references: [id])
   activityLogs ActivityLog[]
@@ -116,12 +117,13 @@ model ShareLink {
 }
 
 model Settings {
-  id                       String @id @default(cuid())
-  ownerId                  String @unique
-  friendlyReminderDays     Int    @default(3)
-  firmReminderDays         Int    @default(15)
-  finalNoticeDays          Int    @default(45)
-  passwordReconfirmMinutes Int    @default(20)
+  id                       String  @id @default(cuid())
+  ownerId                  String  @unique
+  friendlyReminderDays     Int     @default(3)
+  firmReminderDays         Int     @default(15)
+  finalNoticeDays          Int     @default(45)
+  passwordReconfirmMinutes Int     @default(20)
+  sendReceiptImmediately   Boolean @default(false)
 
   owner User @relation(fields: [ownerId], references: [id])
 }

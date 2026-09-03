@@ -1,11 +1,15 @@
 import { Resend } from "resend";
 import { render } from "react-email";
 import { ReminderEmail } from "@/emails/ReminderEmail";
+import { getActiveReceiptTemplate } from "@/lib/receiptTemplates";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 const FROM_ADDRESS = "Remitrak <onboarding@resend.dev>";
 const REMINDER_FROM_ADDRESS =
   process.env.REMINDER_FROM_ADDRESS ?? "Remitrak <onboarding@resend.dev>";
+const RECEIPT_FROM_ADDRESS =
+  process.env.RECEIPT_FROM_ADDRESS ?? "Remitrak <onboarding@resend.dev>";
+const BUSINESS_NAME = "Remitrak";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<boolean> {
   try {
@@ -84,6 +88,57 @@ export async function sendReminderEmail(
     return true;
   } catch (err) {
     console.error("Failed to send reminder email:", err);
+    return false;
+  }
+}
+
+// A receipt is a financial document — its content must be deterministic,
+// fixed-template markup merged with real invoice data via plain string
+// interpolation, never AI-drafted, so a hallucinated total or date can never
+// reach a client. Unlike sendReminderEmail, none of the inputs here are
+// free-text drafted elsewhere; every field is real, already-persisted data.
+export async function sendReceiptEmail(
+  to: string,
+  clientName: string,
+  invoiceNumber: string,
+  description: string,
+  amountPaid: number,
+  currency: string,
+  datePaidIso: string
+): Promise<boolean> {
+  try {
+    const { Component } = getActiveReceiptTemplate();
+    const element = Component({
+      businessName: BUSINESS_NAME,
+      clientName,
+      invoiceNumber,
+      description,
+      amountPaid: formatCurrency(amountPaid, currency),
+      datePaid: formatDate(datePaidIso),
+    });
+    const [html, text] = await Promise.all([
+      render(element),
+      render(element, { plainText: true }),
+    ]);
+
+    // See sendPasswordResetEmail above for why the client is constructed
+    // lazily inside the try/catch rather than at module scope.
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: RECEIPT_FROM_ADDRESS,
+      to: [to],
+      subject: `Receipt for invoice ${invoiceNumber}`,
+      html,
+      text,
+    });
+
+    if (error) {
+      console.error("Failed to send receipt email:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to send receipt email:", err);
     return false;
   }
 }

@@ -48,6 +48,8 @@ export default function SettingsPage() {
     updateReminderSchedule,
     passwordReconfirmMinutes,
     updatePasswordReconfirmMinutes,
+    sendReceiptImmediately,
+    updateSendReceiptImmediately,
     runDailyCheck,
   } = useAppData();
   const { showToast } = useToast();
@@ -59,6 +61,8 @@ export default function SettingsPage() {
   const [reconfirmDraft, setReconfirmDraft] = useState(passwordReconfirmMinutes);
   const [syncedReconfirmMinutes, setSyncedReconfirmMinutes] = useState(passwordReconfirmMinutes);
   const [savingReconfirm, setSavingReconfirm] = useState(false);
+
+  const [savingReceiptSetting, setSavingReceiptSetting] = useState(false);
 
   if (reminderSchedule !== syncedSchedule) {
     setSyncedSchedule(reminderSchedule);
@@ -96,6 +100,23 @@ export default function SettingsPage() {
       showToast("Failed to save — see console for details");
     } finally {
       setSavingReconfirm(false);
+    }
+  }
+
+  async function handleSetSendReceiptImmediately(enabled: boolean) {
+    if (enabled === sendReceiptImmediately || savingReceiptSetting) return;
+    setSavingReceiptSetting(true);
+    try {
+      await updateSendReceiptImmediately(enabled);
+      showToast(
+        enabled
+          ? "Receipts will now send automatically"
+          : "Receipts will now wait for your review"
+      );
+    } catch {
+      showToast("Failed to save — see console for details");
+    } finally {
+      setSavingReceiptSetting(false);
     }
   }
 
@@ -178,6 +199,45 @@ export default function SettingsPage() {
               </p>
             )}
           </label>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Payment receipts"
+          subtitle="What happens when an invoice is marked paid in full"
+        />
+        <div className="px-5 py-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              onClick={() => handleSetSendReceiptImmediately(false)}
+              disabled={savingReceiptSetting}
+              className={`rounded-lg border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                !sendReceiptImmediately
+                  ? "border-blue-300 bg-blue-50"
+                  : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <p className="text-sm font-medium text-slate-900">Review before sending</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                A &quot;Send receipt&quot; action appears for you to trigger manually. Default.
+              </p>
+            </button>
+            <button
+              onClick={() => handleSetSendReceiptImmediately(true)}
+              disabled={savingReceiptSetting}
+              className={`rounded-lg border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                sendReceiptImmediately
+                  ? "border-blue-300 bg-blue-50"
+                  : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <p className="text-sm font-medium text-slate-900">Send receipt immediately</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                The receipt emails the client automatically the moment an invoice is paid.
+              </p>
+            </button>
+          </div>
         </div>
       </Card>
 
