@@ -4,6 +4,7 @@ import { mapActivity, mapInvoice } from "@/lib/mappers";
 import { auth } from "@/auth";
 import { sendPaymentReceipt } from "@/lib/receipts";
 import { INVOICE_ITEMS_INCLUDE } from "@/lib/invoiceItems";
+import { getOrCreateSettings } from "@/lib/settings";
 
 export async function POST(
   _request: Request,
@@ -34,7 +35,8 @@ export async function POST(
     );
   }
 
-  const result = await sendPaymentReceipt(invoice);
+  const settings = await getOrCreateSettings(session.user.id);
+  const result = await sendPaymentReceipt(invoice, settings.activeReceiptTemplateId);
   if (!result) {
     return NextResponse.json({ error: "failed to send receipt email" }, { status: 502 });
   }

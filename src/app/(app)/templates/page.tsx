@@ -1,11 +1,8 @@
 import { render } from "react-email";
-import { Card, CardHeader } from "@/components/ui/Card";
-import { TemplatePreviewFrame } from "@/components/templates/TemplatePreviewFrame";
-import { RECEIPT_TEMPLATES, getActiveReceiptTemplate } from "@/lib/receiptTemplates";
+import { TemplateCard } from "@/components/templates/TemplateCard";
+import { RECEIPT_TEMPLATES } from "@/lib/receiptTemplates";
 
 export default async function TemplatesPage() {
-  const activeTemplate = getActiveReceiptTemplate();
-
   const templates = await Promise.all(
     RECEIPT_TEMPLATES.map(async (template) => ({
       template,
@@ -30,19 +27,13 @@ export default async function TemplatesPage() {
       </p>
 
       {templates.map(({ template, html }) => (
-        <Card key={template.id}>
-          <CardHeader
-            title={template.name}
-            subtitle={
-              template.id === activeTemplate.id
-                ? `${template.description} · Currently in use`
-                : template.description
-            }
-          />
-          <div className="px-5 py-5">
-            <TemplatePreviewFrame html={html} />
-          </div>
-        </Card>
+        <TemplateCard
+          key={template.id}
+          id={template.id}
+          name={template.name}
+          description={template.description}
+          html={html}
+        />
       ))}
     </div>
   );

@@ -110,10 +110,11 @@ export async function sendReceiptEmail(
   amountPaid: number,
   currency: string,
   datePaidIso: string,
+  activeReceiptTemplateId: string,
   items?: { description: string; amount: number }[]
 ): Promise<boolean> {
   try {
-    const { Component } = getActiveReceiptTemplate();
+    const { Component } = getActiveReceiptTemplate(activeReceiptTemplateId);
     const element = Component({
       businessName: BUSINESS_NAME,
       clientName,

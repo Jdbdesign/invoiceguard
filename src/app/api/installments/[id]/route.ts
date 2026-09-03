@@ -128,15 +128,18 @@ export async function PATCH(
   if (invoiceJustFullyPaid) {
     const settings = await getOrCreateSettings(session.user.id);
     if (settings.sendReceiptImmediately && !updatedInvoice.receiptSentAt) {
-      const receiptResult = await sendPaymentReceipt({
-        id: updatedInvoice.id,
-        clientId: updatedInvoice.clientId,
-        invoiceNumber: updatedInvoice.invoiceNumber,
-        description: updatedInvoice.description,
-        amount: updatedInvoice.amount,
-        client: installment.paymentPlan.invoice.client,
-        items: updatedInvoice.items,
-      });
+      const receiptResult = await sendPaymentReceipt(
+        {
+          id: updatedInvoice.id,
+          clientId: updatedInvoice.clientId,
+          invoiceNumber: updatedInvoice.invoiceNumber,
+          description: updatedInvoice.description,
+          amount: updatedInvoice.amount,
+          client: installment.paymentPlan.invoice.client,
+          items: updatedInvoice.items,
+        },
+        settings.activeReceiptTemplateId
+      );
       if (receiptResult) {
         finalInvoice = receiptResult.invoice;
         receiptActivity = mapActivity(receiptResult.activity);

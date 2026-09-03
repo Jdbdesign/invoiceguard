@@ -19,7 +19,7 @@ interface ReceiptInvoice {
 // one place. Sends the email first, then persists — a failed send leaves
 // receiptSentAt untouched so the invoice still surfaces "Send receipt" for a
 // retry, and never fabricates a log entry for an email that didn't go out.
-export async function sendPaymentReceipt(invoice: ReceiptInvoice) {
+export async function sendPaymentReceipt(invoice: ReceiptInvoice, activeReceiptTemplateId: string) {
   const datePaidIso = todayIso();
   const sent = await sendReceiptEmail(
     invoice.client.email,
@@ -29,6 +29,7 @@ export async function sendPaymentReceipt(invoice: ReceiptInvoice) {
     invoice.amount,
     invoice.client.currency,
     datePaidIso,
+    activeReceiptTemplateId,
     invoice.items
   );
   if (!sent) return null;
