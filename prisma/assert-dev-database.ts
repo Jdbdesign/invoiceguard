@@ -8,11 +8,11 @@
 // dedicated dev Neon branch exists, so every guarded script is blocked by
 // default until that value is filled in.
 
-const PRODUCTION_DATABASE_HOST = "ep-long-glitter-ayp4oqdg-pooler.c-5.us-east-2.aws.neon.tech";
+export const PRODUCTION_DATABASE_HOST = "ep-long-glitter-ayp4oqdg-pooler.c-5.us-east-2.aws.neon.tech";
 
 const DEV_DATABASE_HOST = "ep-young-fire-ay9eieeg-pooler.c-5.us-east-2.aws.neon.tech";
 
-function getDatabaseHost(): string {
+export function getDatabaseHost(): string {
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error("DATABASE_URL is not set.");
