@@ -69,6 +69,7 @@ type SettingsRow = {
   finalNoticeDays: number;
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
+  activeReceiptTemplateId: string;
 };
 
 export function mapClient(c: ClientRow): Client {
@@ -151,5 +152,6 @@ export function mapSettings(s: SettingsRow): AppSettings {
     finalDays: s.finalNoticeDays,
     passwordReconfirmMinutes: s.passwordReconfirmMinutes,
     sendReceiptImmediately: s.sendReceiptImmediately,
+    activeReceiptTemplateId: s.activeReceiptTemplateId,
   };
 }

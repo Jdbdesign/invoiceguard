@@ -90,4 +90,5 @@ export interface ReminderSchedule {
 export interface AppSettings extends ReminderSchedule {
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
+  activeReceiptTemplateId: string;
 }

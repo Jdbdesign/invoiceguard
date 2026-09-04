@@ -7,6 +7,7 @@ import {
   PASSWORD_RECONFIRM_MIN_MINUTES,
   PASSWORD_RECONFIRM_MAX_MINUTES,
 } from "@/lib/passwordReconfirmBounds";
+import { RECEIPT_TEMPLATES } from "@/lib/receiptTemplates";
 
 export async function GET() {
   const session = await auth();
@@ -27,6 +28,7 @@ export async function PUT(request: Request) {
     finalNoticeDays?: number;
     passwordReconfirmMinutes?: number;
     sendReceiptImmediately?: boolean;
+    activeReceiptTemplateId?: string;
   } = {};
 
   const hasSchedule =
@@ -76,6 +78,22 @@ export async function PUT(request: Request) {
 
   if (body.sendReceiptImmediately !== undefined) {
     data.sendReceiptImmediately = Boolean(body.sendReceiptImmediately);
+  }
+
+  if (body.activeReceiptTemplateId !== undefined) {
+    const activeReceiptTemplateId = String(body.activeReceiptTemplateId);
+    const isKnownTemplate = RECEIPT_TEMPLATES.some(
+      (template) => template.id === activeReceiptTemplateId
+    );
+
+    if (!isKnownTemplate) {
+      return NextResponse.json(
+        { error: "activeReceiptTemplateId must match a known receipt template" },
+        { status: 400 }
+      );
+    }
+
+    data.activeReceiptTemplateId = activeReceiptTemplateId;
   }
 
   await getOrCreateSettings(session.user.id);

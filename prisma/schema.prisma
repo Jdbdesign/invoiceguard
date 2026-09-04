@@ -138,6 +138,7 @@ model Settings {
   finalNoticeDays          Int     @default(45)
   passwordReconfirmMinutes Int     @default(20)
   sendReceiptImmediately   Boolean @default(false)
+  activeReceiptTemplateId  String  @default("default")
 
   owner User @relation(fields: [ownerId], references: [id])
 }

@@ -74,6 +74,7 @@ interface AppDataContextValue {
   reminderSchedule: ReminderSchedule;
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
+  activeReceiptTemplateId: string;
   loading: boolean;
   addClient: (input: NewClientInput) => Promise<Client>;
   addInvoice: (input: NewInvoiceInput) => Promise<Invoice>;
@@ -104,6 +105,7 @@ interface AppDataContextValue {
   updateReminderSchedule: (schedule: ReminderSchedule) => Promise<void>;
   updatePasswordReconfirmMinutes: (minutes: number) => Promise<void>;
   updateSendReceiptImmediately: (enabled: boolean) => Promise<void>;
+  updateActiveReceiptTemplate: (templateId: string) => Promise<void>;
   runDailyCheck: () => Promise<{ remindersSent: number }>;
 }
 
@@ -150,6 +152,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     PASSWORD_RECONFIRM_DEFAULT_MINUTES
   );
   const [sendReceiptImmediately, setSendReceiptImmediately] = useState<boolean>(false);
+  const [activeReceiptTemplateId, setActiveReceiptTemplateId] = useState<string>("default");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -172,6 +175,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setReminderSchedule(settingsRes);
         setPasswordReconfirmMinutes(settingsRes.passwordReconfirmMinutes);
         setSendReceiptImmediately(settingsRes.sendReceiptImmediately);
+        setActiveReceiptTemplateId(settingsRes.activeReceiptTemplateId);
       } catch (error) {
         console.error("Failed to load InvoiceGuard data", error);
       } finally {
@@ -616,6 +620,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setSendReceiptImmediately(updated.sendReceiptImmediately);
   }, []);
 
+  const updateActiveReceiptTemplate = useCallback(async (templateId: string) => {
+    const updated = await fetchJson<AppSettings>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ activeReceiptTemplateId: templateId }),
+    });
+    setActiveReceiptTemplateId(updated.activeReceiptTemplateId);
+  }, []);
+
   const runDailyCheck = useCallback(async () => {
     const result = await fetchJson<{ remindersSent: number }>(
       "/api/cron/check-overdue",
@@ -637,6 +649,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       reminderSchedule,
       passwordReconfirmMinutes,
       sendReceiptImmediately,
+      activeReceiptTemplateId,
       loading,
       addClient,
       addInvoice,
@@ -655,6 +668,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       updateReminderSchedule,
       updatePasswordReconfirmMinutes,
       updateSendReceiptImmediately,
+      updateActiveReceiptTemplate,
       runDailyCheck,
     }),
     [
@@ -665,6 +679,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       reminderSchedule,
       passwordReconfirmMinutes,
       sendReceiptImmediately,
+      activeReceiptTemplateId,
       loading,
       addClient,
       addInvoice,
@@ -683,6 +698,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       updateReminderSchedule,
       updatePasswordReconfirmMinutes,
       updateSendReceiptImmediately,
+      updateActiveReceiptTemplate,
       runDailyCheck,
     ]
   );

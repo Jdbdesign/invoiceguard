@@ -71,15 +71,18 @@ export async function POST(
   let receiptActivity = null;
   const settings = await getOrCreateSettings(session.user.id);
   if (settings.sendReceiptImmediately && !updated.receiptSentAt) {
-    const receiptResult = await sendPaymentReceipt({
-      id: updated.id,
-      clientId: updated.clientId,
-      invoiceNumber: updated.invoiceNumber,
-      description: updated.description,
-      amount: updated.amount,
-      client: invoice.client,
-      items: updated.items,
-    });
+    const receiptResult = await sendPaymentReceipt(
+      {
+        id: updated.id,
+        clientId: updated.clientId,
+        invoiceNumber: updated.invoiceNumber,
+        description: updated.description,
+        amount: updated.amount,
+        client: invoice.client,
+        items: updated.items,
+      },
+      settings.activeReceiptTemplateId
+    );
     if (receiptResult) {
       finalInvoice = receiptResult.invoice;
       receiptActivity = mapActivity(receiptResult.activity);
