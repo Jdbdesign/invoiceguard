@@ -17,6 +17,11 @@ import {
 const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+interface ReceiptLineItem {
+  description: string;
+  amount: string;
+}
+
 interface PaymentReceiptEmailProps {
   businessName: string;
   clientName: string;
@@ -24,15 +29,19 @@ interface PaymentReceiptEmailProps {
   description: string;
   amountPaid: string;
   datePaid: string;
+  items?: ReceiptLineItem[];
 }
 
 // A second, more document-styled receipt design (indigo/purple, structured
 // header + boxed total) for accounts that select it in /templates — an
 // alternative to the default's "paid stamp" banner look, not a replacement.
-// Adapted from a reference invoice layout: the multi-line itemized table,
-// tax/discount math, and bank/terms footer columns from that reference don't
-// map to any data Remitrak tracks, so they're collapsed to a single
-// description/amount line and a short footer instead of being fabricated.
+// Adapted from a reference invoice layout: the tax/discount math and
+// bank/terms footer columns from that reference don't map to any data
+// Remitrak tracks, so they're collapsed to a single description/amount line
+// (or, once the line-items feature shipped, the same itemized breakdown the
+// default template renders — this design's items table is closer to the
+// original reference layout than the default's dashed-rule list) plus a
+// short footer instead of being fabricated.
 export default function PaymentReceiptIndigoEmail({
   businessName,
   clientName,
@@ -40,7 +49,9 @@ export default function PaymentReceiptIndigoEmail({
   description,
   amountPaid,
   datePaid,
+  items,
 }: PaymentReceiptEmailProps) {
+  const hasItems = Boolean(items && items.length > 0);
   return (
     <Html lang="en">
       <Tailwind config={{ presets: [pixelBasedPreset] }}>
@@ -121,18 +132,49 @@ export default function PaymentReceiptIndigoEmail({
                   </Text>
                 </Column>
               </Row>
-              <Row>
-                <Column className="px-8 py-4">
-                  <Text className="m-0 text-[13px] text-slate-700">
-                    {description}
-                  </Text>
-                </Column>
-                <Column align="right" className="px-8 py-4">
-                  <Text className="m-0 text-[13px] font-medium text-slate-900">
-                    {amountPaid}
-                  </Text>
-                </Column>
-              </Row>
+              {hasItems ? (
+                <>
+                  {items!.map((item, index) => (
+                    <Row key={index}>
+                      <Column className="px-8 py-4">
+                        <Text className="m-0 text-[13px] text-slate-700">
+                          {item.description}
+                        </Text>
+                      </Column>
+                      <Column align="right" className="px-8 py-4">
+                        <Text className="m-0 text-[13px] font-medium text-slate-900">
+                          {item.amount}
+                        </Text>
+                      </Column>
+                    </Row>
+                  ))}
+                  <Row>
+                    <Column className="px-8 py-4">
+                      <Text className="m-0 text-[13px] font-semibold text-slate-900">
+                        Total
+                      </Text>
+                    </Column>
+                    <Column align="right" className="px-8 py-4">
+                      <Text className="m-0 text-[13px] font-semibold text-slate-900">
+                        {amountPaid}
+                      </Text>
+                    </Column>
+                  </Row>
+                </>
+              ) : (
+                <Row>
+                  <Column className="px-8 py-4">
+                    <Text className="m-0 text-[13px] text-slate-700">
+                      {description}
+                    </Text>
+                  </Column>
+                  <Column align="right" className="px-8 py-4">
+                    <Text className="m-0 text-[13px] font-medium text-slate-900">
+                      {amountPaid}
+                    </Text>
+                  </Column>
+                </Row>
+              )}
             </Section>
 
             <Section className="rounded-b-xl border border-t-0 border-solid border-indigo-100 bg-white px-8 pt-2 pb-8">
