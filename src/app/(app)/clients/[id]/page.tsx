@@ -12,6 +12,7 @@ import { CreatePaymentPlanModal } from "@/components/invoices/CreatePaymentPlanM
 import { ReminderModal } from "@/components/invoices/ReminderModal";
 import { ShareLinkModal } from "@/components/clients/ShareLinkModal";
 import { InstallmentLabelEditor } from "@/components/invoices/InstallmentLabelEditor";
+import { InvoiceItemsDisclosure } from "@/components/invoices/InvoiceItemsDisclosure";
 import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
@@ -192,6 +193,7 @@ export default function ClientDetailPage() {
                       <p className="mt-0.5 text-xs text-slate-500">
                         Due {formatDate(invoice.dueDate)}
                       </p>
+                      <InvoiceItemsDisclosure items={invoice.items} currency={client.currency} />
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-3">
                       <div className="text-right">

@@ -26,6 +26,12 @@ export interface ClientListItem extends Client {
  * ClientListItem/Client but never shown on that page). */
 export type SharedClientSummary = Omit<ClientListItem, "phone">;
 
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  amount: number;
+}
+
 export interface Invoice {
   id: string;
   clientId: string;
@@ -36,6 +42,7 @@ export interface Invoice {
   status: InvoiceStatus;
   description: string;
   receiptSentAt?: string;
+  items: InvoiceItem[];
 }
 
 export interface Installment {

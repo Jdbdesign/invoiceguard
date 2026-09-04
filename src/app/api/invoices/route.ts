@@ -4,6 +4,7 @@ import { mapInvoice } from "@/lib/mappers";
 import { fromIsoDate, toIsoDate } from "@/lib/dateSerialization";
 import { daysBetween, todayIso } from "@/lib/utils";
 import { parsePaginationParams } from "@/lib/pagination";
+import { INVOICE_ITEMS_INCLUDE, parseInvoiceItems, sumInvoiceItems } from "@/lib/invoiceItems";
 import { auth } from "@/auth";
 
 type SortKey = "dueDate" | "amount" | "daysOverdue";
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
     const invoices = await prisma.invoice.findMany({
       where: { client: { ownerId } },
       orderBy: { createdAt: "desc" },
+      include: { items: INVOICE_ITEMS_INCLUDE },
     });
     return NextResponse.json(invoices.map(mapInvoice));
   }
@@ -48,7 +50,10 @@ export async function GET(request: Request) {
     const start = (pagination.page - 1) * pagination.pageSize;
     const pageIds = ranked.slice(start, start + pagination.pageSize).map((r) => r.id);
 
-    const rows = await prisma.invoice.findMany({ where: { id: { in: pageIds } } });
+    const rows = await prisma.invoice.findMany({
+      where: { id: { in: pageIds } },
+      include: { items: INVOICE_ITEMS_INCLUDE },
+    });
     const rowsById = new Map(rows.map((r) => [r.id, r]));
     const ordered = pageIds
       .map((id) => rowsById.get(id))
@@ -70,6 +75,7 @@ export async function GET(request: Request) {
       orderBy,
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
+      include: { items: INVOICE_ITEMS_INCLUDE },
     }),
   ]);
 
@@ -98,9 +104,14 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const clientId = String(body.clientId ?? "");
-  const amount = Number(body.amount);
   const dueDate = String(body.dueDate ?? "");
   const description = String(body.description ?? "").trim();
+
+  const items = parseInvoiceItems(body.items);
+  if (items === null) {
+    return NextResponse.json({ error: "invalid line item input" }, { status: 400 });
+  }
+  const amount = items.length > 0 ? sumInvoiceItems(items) : Number(body.amount);
 
   if (!clientId || !Number.isFinite(amount) || amount <= 0 || !dueDate || !description) {
     return NextResponse.json({ error: "invalid invoice input" }, { status: 400 });
@@ -124,7 +135,12 @@ export async function POST(request: Request) {
       balance: amount,
       dueDate: fromIsoDate(dueDate),
       status: "unpaid",
+      items:
+        items.length > 0
+          ? { create: items.map((item, index) => ({ ...item, position: index })) }
+          : undefined,
     },
+    include: { items: INVOICE_ITEMS_INCLUDE },
   });
 
   return NextResponse.json(mapInvoice(invoice), { status: 201 });

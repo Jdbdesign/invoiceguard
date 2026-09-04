@@ -14,12 +14,18 @@ import {
 const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+interface ReminderLineItem {
+  description: string;
+  amount: string;
+}
+
 interface ReminderEmailProps {
   invoiceNumber: string;
   description: string;
   amountDue: string;
   dueDate: string;
   body: string;
+  items?: ReminderLineItem[];
 }
 
 function splitParagraphs(body: string): string[] {
@@ -53,7 +59,9 @@ export default function ReminderEmail({
   amountDue,
   dueDate,
   body,
+  items,
 }: ReminderEmailProps) {
+  const hasItems = Boolean(items && items.length > 0);
   const paragraphs = splitParagraphs(body);
   const { before, after } = splitAtDetailsMarker(paragraphs);
 
@@ -90,9 +98,24 @@ export default function ReminderEmail({
               <Text className="m-0 mb-2 text-[15px] leading-6 text-slate-900">
                 <strong>Invoice:</strong> {invoiceNumber}
               </Text>
-              <Text className="m-0 mb-2 text-[15px] leading-6 text-slate-900">
-                <strong>Description:</strong> {description}
-              </Text>
+              {hasItems ? (
+                <div style={{ marginBottom: 8 }}>
+                  <Text className="m-0 mb-1 text-[15px] leading-6 text-slate-900">
+                    <strong>Items:</strong>
+                  </Text>
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {items!.map((item, index) => (
+                      <li key={index} style={{ fontSize: 15, lineHeight: "24px", color: "#0f172a" }}>
+                        {item.description} — {item.amount}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <Text className="m-0 mb-2 text-[15px] leading-6 text-slate-900">
+                  <strong>Description:</strong> {description}
+                </Text>
+              )}
               <Text className="m-0 mb-2 text-[15px] leading-6 text-slate-900">
                 <strong>Amount due:</strong> {amountDue}
               </Text>

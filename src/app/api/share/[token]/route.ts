@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { mapClient, mapInvoice, mapPaymentPlan } from "@/lib/mappers";
 import { resolveShareLink } from "@/lib/shareLink";
 import { getClientListItems } from "@/lib/clientListQuery";
+import { INVOICE_ITEMS_INCLUDE } from "@/lib/invoiceItems";
 import type { SharedClientSummary } from "@/lib/types";
 
 const NOT_FOUND = NextResponse.json(
@@ -42,7 +43,10 @@ export async function GET(
   if (!client) return NOT_FOUND;
 
   const [invoices, paymentPlans] = await Promise.all([
-    prisma.invoice.findMany({ where: { clientId: client.id } }),
+    prisma.invoice.findMany({
+      where: { clientId: client.id },
+      include: { items: INVOICE_ITEMS_INCLUDE },
+    }),
     prisma.paymentPlan.findMany({
       where: { invoice: { clientId: client.id } },
       include: { invoice: true, installments: true },

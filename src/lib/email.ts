@@ -53,7 +53,8 @@ export async function sendReminderEmail(
   description: string,
   balance: number,
   currency: string,
-  dueDateIso: string
+  dueDateIso: string,
+  items?: { description: string; amount: number }[]
 ): Promise<boolean> {
   try {
     const amountDue = formatCurrency(balance, currency);
@@ -64,6 +65,10 @@ export async function sendReminderEmail(
       amountDue,
       dueDate,
       body,
+      items: items?.map((item) => ({
+        description: item.description,
+        amount: formatCurrency(item.amount, currency),
+      })),
     });
     const [html, text] = await Promise.all([
       render(element),
@@ -104,7 +109,8 @@ export async function sendReceiptEmail(
   description: string,
   amountPaid: number,
   currency: string,
-  datePaidIso: string
+  datePaidIso: string,
+  items?: { description: string; amount: number }[]
 ): Promise<boolean> {
   try {
     const { Component } = getActiveReceiptTemplate();
@@ -115,6 +121,10 @@ export async function sendReceiptEmail(
       description,
       amountPaid: formatCurrency(amountPaid, currency),
       datePaid: formatDate(datePaidIso),
+      items: items?.map((item) => ({
+        description: item.description,
+        amount: formatCurrency(item.amount, currency),
+      })),
     });
     const [html, text] = await Promise.all([
       render(element),

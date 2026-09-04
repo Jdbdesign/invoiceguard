@@ -17,6 +17,11 @@ import {
 const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+interface ReceiptLineItem {
+  description: string;
+  amount: string;
+}
+
 interface PaymentReceiptEmailProps {
   businessName: string;
   clientName: string;
@@ -24,6 +29,7 @@ interface PaymentReceiptEmailProps {
   description: string;
   amountPaid: string;
   datePaid: string;
+  items?: ReceiptLineItem[];
 }
 
 // Deliberately distinct from ReminderEmail's neutral card: a "paid stamp"
@@ -36,7 +42,9 @@ export default function PaymentReceiptEmail({
   description,
   amountPaid,
   datePaid,
+  items,
 }: PaymentReceiptEmailProps) {
+  const hasItems = Boolean(items && items.length > 0);
   return (
     <Html lang="en">
       <Tailwind config={{ presets: [pixelBasedPreset] }}>
@@ -95,18 +103,49 @@ export default function PaymentReceiptEmail({
                   </Text>
                 </Column>
               </Row>
-              <Row>
-                <Column>
-                  <Text className="m-0 mb-3 text-[13px] leading-5 text-slate-500">
-                    For
-                  </Text>
-                </Column>
-                <Column align="right">
-                  <Text className="m-0 mb-3 text-[13px] leading-5 font-medium text-slate-900">
-                    {description}
-                  </Text>
-                </Column>
-              </Row>
+              {hasItems ? (
+                <>
+                  {items!.map((item, index) => (
+                    <Row key={index}>
+                      <Column>
+                        <Text className="m-0 mb-3 text-[13px] leading-5 text-slate-500">
+                          {item.description}
+                        </Text>
+                      </Column>
+                      <Column align="right">
+                        <Text className="m-0 mb-3 text-[13px] leading-5 font-medium text-slate-900">
+                          {item.amount}
+                        </Text>
+                      </Column>
+                    </Row>
+                  ))}
+                  <Row>
+                    <Column>
+                      <Text className="m-0 mb-3 text-[13px] leading-5 font-semibold text-slate-900">
+                        Total
+                      </Text>
+                    </Column>
+                    <Column align="right">
+                      <Text className="m-0 mb-3 text-[13px] leading-5 font-semibold text-slate-900">
+                        {amountPaid}
+                      </Text>
+                    </Column>
+                  </Row>
+                </>
+              ) : (
+                <Row>
+                  <Column>
+                    <Text className="m-0 mb-3 text-[13px] leading-5 text-slate-500">
+                      For
+                    </Text>
+                  </Column>
+                  <Column align="right">
+                    <Text className="m-0 mb-3 text-[13px] leading-5 font-medium text-slate-900">
+                      {description}
+                    </Text>
+                  </Column>
+                </Row>
+              )}
               <Row>
                 <Column>
                   <Text className="m-0 mb-3 text-[13px] leading-5 text-slate-500">

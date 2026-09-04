@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 import { getOrCreateSettings } from "@/lib/settings";
 import { sendPaymentReceipt } from "@/lib/receipts";
+import { INVOICE_ITEMS_INCLUDE } from "@/lib/invoiceItems";
 
 export async function POST(
   _request: Request,
@@ -51,6 +52,7 @@ export async function POST(
   const updated = await prisma.invoice.update({
     where: { id: invoice.id },
     data: { status: "paid", balance: 0 },
+    include: { items: INVOICE_ITEMS_INCLUDE },
   });
 
   const amountLabel = formatCurrency(invoice.amount, invoice.client.currency);
@@ -76,6 +78,7 @@ export async function POST(
       description: updated.description,
       amount: updated.amount,
       client: invoice.client,
+      items: updated.items,
     });
     if (receiptResult) {
       finalInvoice = receiptResult.invoice;
