@@ -178,15 +178,18 @@ export default function SettingsPage() {
               Require password confirmation every
             </span>
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={PASSWORD_RECONFIRM_MIN_MINUTES}
-                max={PASSWORD_RECONFIRM_MAX_MINUTES}
-                value={reconfirmDraft}
-                onChange={(e) => setReconfirmDraft(Number(e.target.value))}
-                aria-invalid={!isReconfirmValid}
-                className="input w-24"
-              />
+              {/* Width belongs on this wrapper, not the input — .input's unlayered width:100% in globals.css always beats a Tailwind width utility placed directly on the element. */}
+              <div className="w-24 flex-shrink-0">
+                <input
+                  type="number"
+                  min={PASSWORD_RECONFIRM_MIN_MINUTES}
+                  max={PASSWORD_RECONFIRM_MAX_MINUTES}
+                  value={reconfirmDraft}
+                  onChange={(e) => setReconfirmDraft(Number(e.target.value))}
+                  aria-invalid={!isReconfirmValid}
+                  className="input"
+                />
+              </div>
               <span className="text-xs text-slate-500">
                 minutes for sensitive actions ({PASSWORD_RECONFIRM_MIN_MINUTES}–
                 {PASSWORD_RECONFIRM_MAX_MINUTES})
@@ -352,13 +355,16 @@ function ScheduleField({
     <label className="block">
       <span className="mb-1.5 block text-xs font-medium text-slate-600">{label}</span>
       <div className="flex items-center gap-2">
-        <input
-          type="number"
-          min={0}
-          value={value}
-          onChange={(e) => onChange(Math.max(0, Number(e.target.value)))}
-          className="input w-24"
-        />
+        {/* Width belongs on this wrapper, not the input — .input's unlayered width:100% in globals.css always beats a Tailwind width utility placed directly on the element. */}
+        <div className="w-24 flex-shrink-0">
+          <input
+            type="number"
+            min={0}
+            value={value}
+            onChange={(e) => onChange(Math.max(0, Number(e.target.value)))}
+            className="input"
+          />
+        </div>
         <span className="text-xs text-slate-500">{hint}</span>
       </div>
     </label>
