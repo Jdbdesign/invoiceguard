@@ -15,6 +15,8 @@
     "db:verify-backfill": "tsx prisma/verify-owner-backfill.ts",
     "db:apply-prod-invoice-items-migration": "tsx prisma/apply-prod-invoice-items-migration.ts",
     "db:resolve-prod-invoice-items-migration": "tsx prisma/resolve-prod-invoice-items-migration.ts",
+    "db:apply-prod-active-receipt-template-migration": "tsx prisma/apply-prod-active-receipt-template-migration.ts",
+    "db:resolve-prod-active-receipt-template-migration": "tsx prisma/resolve-prod-active-receipt-template-migration.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
