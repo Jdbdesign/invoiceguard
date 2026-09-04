@@ -26,15 +26,17 @@ export default async function TemplatesPage() {
         into this fixed design, never AI-generated. Sample data shown below.
       </p>
 
-      {templates.map(({ template, html }) => (
-        <TemplateCard
-          key={template.id}
-          id={template.id}
-          name={template.name}
-          description={template.description}
-          html={html}
-        />
-      ))}
+      <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {templates.map(({ template, html }) => (
+          <TemplateCard
+            key={template.id}
+            id={template.id}
+            name={template.name}
+            description={template.description}
+            html={html}
+          />
+        ))}
+      </div>
     </div>
   );
 }
