@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 import { getOrCreateSettings } from "@/lib/settings";
 import { sendPaymentReceipt } from "@/lib/receipts";
+import { INVOICE_ITEMS_INCLUDE } from "@/lib/invoiceItems";
 
 export async function POST(
   _request: Request,
@@ -62,6 +63,7 @@ export async function POST(
     prisma.invoice.update({
       where: { id: invoice.id },
       data: { status: "paid", balance: 0 },
+      include: { items: INVOICE_ITEMS_INCLUDE },
     }),
     prisma.activityLog.create({
       data: {
@@ -85,6 +87,7 @@ export async function POST(
       description: updatedInvoice.description,
       amount: updatedInvoice.amount,
       client: invoice.client,
+      items: updatedInvoice.items,
     });
     if (receiptResult) {
       finalInvoice = receiptResult.invoice;

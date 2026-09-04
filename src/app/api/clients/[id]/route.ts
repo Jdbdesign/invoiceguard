@@ -82,7 +82,10 @@ export async function DELETE(
       : []),
     prisma.activityLog.deleteMany({ where: { clientId: id } }),
     ...(invoiceIds.length > 0
-      ? [prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } })]
+      ? [
+          prisma.invoiceItem.deleteMany({ where: { invoiceId: { in: invoiceIds } } }),
+          prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } }),
+        ]
       : []),
     prisma.client.delete({ where: { id } }),
   ]);

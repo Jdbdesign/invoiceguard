@@ -3,8 +3,9 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { mapInvoice } from "@/lib/mappers";
 import { invoiceStatusLabel } from "@/lib/badgeHelpers";
-import { getInvoiceBalance, getDaysOverdue, todayIso } from "@/lib/utils";
+import { formatCurrency, getInvoiceBalance, getDaysOverdue, todayIso } from "@/lib/utils";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { INVOICE_ITEMS_INCLUDE } from "@/lib/invoiceItems";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -19,7 +20,10 @@ export async function GET(request: Request) {
 
   const rows = await prisma.invoice.findMany({
     where,
-    include: { client: { select: { name: true, currency: true } } },
+    include: {
+      client: { select: { name: true, currency: true } },
+      items: INVOICE_ITEMS_INCLUDE,
+    },
     orderBy: { dueDate: "asc" },
   });
 
@@ -35,10 +39,14 @@ export async function GET(request: Request) {
       "Due Date",
       "Days Overdue",
       "Status",
+      "Item Breakdown",
     ],
     rows.map((row) => {
       const invoice = mapInvoice(row);
       const overdue = getDaysOverdue(invoice);
+      const itemBreakdown = invoice.items
+        .map((item) => `${item.description}: ${formatCurrency(item.amount, row.client.currency)}`)
+        .join("; ");
       return [
         invoice.id,
         row.client.name,
@@ -50,6 +58,7 @@ export async function GET(request: Request) {
         invoice.dueDate,
         invoice.status !== "paid" && overdue !== null && overdue > 0 ? overdue : "",
         invoiceStatusLabel(invoice).label,
+        itemBreakdown,
       ];
     })
   );

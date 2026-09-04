@@ -30,11 +30,17 @@ interface NewClientInput {
   currency: string;
 }
 
+interface InvoiceItemInput {
+  description: string;
+  amount: number;
+}
+
 interface NewInvoiceInput {
   clientId: string;
   amount: number;
   dueDate: string;
   description: string;
+  items?: InvoiceItemInput[];
 }
 
 interface UpdateClientInput {
@@ -50,6 +56,7 @@ interface UpdateInvoiceInput {
   dueDate: string;
   description: string;
   status: Invoice["status"];
+  items?: InvoiceItemInput[];
 }
 
 interface CreatePaymentPlanInput {

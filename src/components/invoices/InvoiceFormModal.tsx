@@ -13,6 +13,11 @@ const EDITABLE_STATUSES: { value: InvoiceStatus; label: string }[] = [
   { value: "paid", label: "Paid" },
 ];
 
+interface DraftItem {
+  description: string;
+  amount: string;
+}
+
 export function InvoiceFormModal({
   open,
   onClose,
@@ -30,6 +35,7 @@ export function InvoiceFormModal({
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<InvoiceStatus>("unpaid");
+  const [items, setItems] = useState<DraftItem[]>([]);
 
   const hasPaymentPlan =
     isEdit && invoice ? invoiceHasPaymentPlan(invoice.id, paymentPlans) : false;
@@ -37,6 +43,13 @@ export function InvoiceFormModal({
   const amountLockedReason = hasPaymentPlan
     ? "This invoice has an active payment plan — manage payments through the installment list instead."
     : "Amount can't be changed after a payment has been recorded.";
+
+  // Two or more rows means the invoice is itemized — the Amount field
+  // becomes a computed, read-only sum of the rows. Removing a row back down
+  // to one collapses to plain flat-amount mode (see removeItem below)
+  // rather than ever showing a lone, pointless one-row breakdown.
+  const itemized = items.length >= 2;
+  const itemsSum = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   // Reset the form fields whenever the modal opens for a (possibly new)
   // invoice, without an effect — see ClientFormModal for why this runs
@@ -47,21 +60,60 @@ export function InvoiceFormModal({
     setLastOpenKey(openKey);
     if (openKey !== null) {
       setClientId(invoice?.clientId ?? "");
-      setAmount(invoice ? String(invoice.amount) : "");
       setDueDate(invoice?.dueDate ?? "");
       setDescription(invoice?.description ?? "");
       setStatus(
         invoice?.status && invoice.status !== "payment_plan" ? invoice.status : "unpaid"
       );
+      if (invoice && invoice.items.length >= 2) {
+        setItems(invoice.items.map((item) => ({ description: item.description, amount: String(item.amount) })));
+      } else {
+        setItems([]);
+      }
+      setAmount(invoice ? String(invoice.amount) : "");
     }
   }
 
   const selectedClient = clients.find((c) => c.id === clientId);
 
+  function startItemizing() {
+    setItems([
+      { description: "", amount: "" },
+      { description: "", amount: "" },
+    ]);
+  }
+
+  function addItemRow() {
+    setItems((prev) => [...prev, { description: "", amount: "" }]);
+  }
+
+  function updateItemRow(index: number, patch: Partial<DraftItem>) {
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function removeItemRow(index: number) {
+    const next = items.filter((_, i) => i !== index);
+    if (next.length <= 1) {
+      // Down to (at most) one row is no longer a meaningful breakdown —
+      // fold back into the plain Amount field, carrying over the one
+      // remaining row's amount so the total isn't lost.
+      if (next.length === 1) setAmount(next[0].amount);
+      setItems([]);
+    } else {
+      setItems(next);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const numAmount = Number(amount);
+    const numAmount = itemized ? itemsSum : Number(amount);
     if (!clientId || !numAmount || !dueDate || !description.trim()) return;
+    if (itemized && !items.every((item) => item.description.trim() && Number(item.amount) > 0)) {
+      return;
+    }
+    const itemsPayload = itemized
+      ? items.map((item) => ({ description: item.description.trim(), amount: Number(item.amount) }))
+      : undefined;
     try {
       if (isEdit && invoice) {
         const updated = await updateInvoice(invoice.id, {
@@ -70,6 +122,7 @@ export function InvoiceFormModal({
           dueDate,
           description: description.trim(),
           status,
+          items: itemsPayload,
         });
         showToast(`Invoice ${updated.id} updated`);
       } else {
@@ -78,6 +131,7 @@ export function InvoiceFormModal({
           amount: numAmount,
           dueDate,
           description: description.trim(),
+          items: itemsPayload,
         });
         showToast(`Invoice ${created.id} created`);
       }
@@ -126,6 +180,76 @@ export function InvoiceFormModal({
             className="input"
           />
         </Field>
+
+        {!itemized && !amountLocked && (
+          <button
+            type="button"
+            onClick={startItemizing}
+            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            + Add line item
+          </button>
+        )}
+
+        {itemized && (
+          <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-medium text-slate-600">Line items</p>
+            {items.map((item, index) => (
+              <div key={index} className="flex items-center gap-2">
+                {/* Width utilities go on these wrapper divs, not directly on
+                    .input — .input's hand-written `width: 100%` is unlayered
+                    CSS, which Cascade Layers always ranks above Tailwind's
+                    layered utilities, so a Tailwind width class placed
+                    directly on an .input element gets silently overridden. */}
+                <div className="flex-1">
+                  <input
+                    required
+                    value={item.description}
+                    disabled={amountLocked}
+                    onChange={(e) => updateItemRow(index, { description: e.target.value })}
+                    placeholder="e.g. School fee"
+                    className={`input ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
+                  />
+                </div>
+                <div className="w-28 flex-shrink-0">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.amount}
+                    disabled={amountLocked}
+                    onChange={(e) => updateItemRow(index, { amount: e.target.value })}
+                    placeholder="0.00"
+                    className={`input ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
+                  />
+                </div>
+                {!amountLocked && (
+                  <button
+                    type="button"
+                    onClick={() => removeItemRow(index)}
+                    aria-label="Remove line item"
+                    className="flex-shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" d="M6 6l12 12M6 18L18 6" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+            {!amountLocked && (
+              <button
+                type="button"
+                onClick={addItemRow}
+                className="text-xs font-medium text-blue-600 hover:text-blue-700"
+              >
+                + Add another line item
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={`Amount${selectedClient ? ` (${selectedClient.currency})` : ""}`}>
             <input
@@ -133,11 +257,11 @@ export function InvoiceFormModal({
               type="number"
               min="0"
               step="0.01"
-              disabled={amountLocked}
-              value={amount}
+              disabled={amountLocked || itemized}
+              value={itemized ? itemsSum.toFixed(2) : amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="1500.00"
-              className={`input ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
+              className={`input ${amountLocked || itemized ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
             />
           </Field>
           <Field label="Due date">
@@ -152,6 +276,11 @@ export function InvoiceFormModal({
         </div>
         {amountLocked && (
           <p className="-mt-2 text-xs text-slate-500">{amountLockedReason}</p>
+        )}
+        {!amountLocked && itemized && (
+          <p className="-mt-2 text-xs text-slate-500">
+            Amount is the sum of the line items above.
+          </p>
         )}
         {isEdit && !hasPaymentPlan && (
           <Field label="Status">

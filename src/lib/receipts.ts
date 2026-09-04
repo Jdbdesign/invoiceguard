@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { sendReceiptEmail } from "./email";
 import { formatCurrency, todayIso } from "./utils";
+import { INVOICE_ITEMS_INCLUDE } from "./invoiceItems";
 
 interface ReceiptInvoice {
   id: string;
@@ -9,6 +10,7 @@ interface ReceiptInvoice {
   description: string;
   amount: number;
   client: { email: string; name: string; currency: string };
+  items?: { description: string; amount: number }[];
 }
 
 // Shared by every trigger point (mark-paid, settle-payment-plan,
@@ -17,9 +19,7 @@ interface ReceiptInvoice {
 // one place. Sends the email first, then persists — a failed send leaves
 // receiptSentAt untouched so the invoice still surfaces "Send receipt" for a
 // retry, and never fabricates a log entry for an email that didn't go out.
-export async function sendPaymentReceipt(
-  invoice: ReceiptInvoice
-): Promise<{ invoice: Awaited<ReturnType<typeof prisma.invoice.update>>; activity: Awaited<ReturnType<typeof prisma.activityLog.create>> } | null> {
+export async function sendPaymentReceipt(invoice: ReceiptInvoice) {
   const datePaidIso = todayIso();
   const sent = await sendReceiptEmail(
     invoice.client.email,
@@ -28,7 +28,8 @@ export async function sendPaymentReceipt(
     invoice.description,
     invoice.amount,
     invoice.client.currency,
-    datePaidIso
+    datePaidIso,
+    invoice.items
   );
   if (!sent) return null;
 
@@ -37,6 +38,7 @@ export async function sendPaymentReceipt(
     prisma.invoice.update({
       where: { id: invoice.id },
       data: { receiptSentAt: new Date() },
+      include: { items: INVOICE_ITEMS_INCLUDE },
     }),
     prisma.activityLog.create({
       data: {

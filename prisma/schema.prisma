@@ -61,6 +61,20 @@ model Invoice {
   client       Client        @relation(fields: [clientId], references: [id])
   activityLogs ActivityLog[]
   paymentPlan  PaymentPlan?
+  items        InvoiceItem[]
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  amount      Float
+  position    Int
+  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId, position])
 }
 
 model ActivityLog {

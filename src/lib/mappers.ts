@@ -6,6 +6,7 @@ import type {
   Client,
   Installment,
   Invoice,
+  InvoiceItem,
   InvoiceStatus,
   PaymentPlan,
   ReminderStage,
@@ -18,6 +19,12 @@ type ClientRow = {
   phone: string;
   currency: string;
 };
+type InvoiceItemRow = {
+  id: string;
+  description: string;
+  amount: number;
+  position: number;
+};
 type InvoiceRow = {
   id: string;
   clientId: string;
@@ -29,6 +36,7 @@ type InvoiceRow = {
   status: string;
   createdAt: Date;
   receiptSentAt: Date | null;
+  items?: InvoiceItemRow[];
 };
 type ActivityRow = {
   id: string;
@@ -73,6 +81,14 @@ export function mapClient(c: ClientRow): Client {
   };
 }
 
+export function mapInvoiceItem(item: InvoiceItemRow): InvoiceItem {
+  return {
+    id: item.id,
+    description: item.description,
+    amount: item.amount,
+  };
+}
+
 export function mapInvoice(inv: InvoiceRow): Invoice {
   return {
     id: inv.invoiceNumber,
@@ -84,6 +100,10 @@ export function mapInvoice(inv: InvoiceRow): Invoice {
     status: inv.status as InvoiceStatus,
     description: inv.description,
     receiptSentAt: inv.receiptSentAt ? toIsoDate(inv.receiptSentAt) : undefined,
+    items: (inv.items ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map(mapInvoiceItem),
   };
 }
 

@@ -5,6 +5,7 @@ import type { ReminderStage } from "@/lib/types";
 import { auth } from "@/auth";
 import { sendReminderEmail } from "@/lib/email";
 import { toIsoDate } from "@/lib/dateSerialization";
+import { INVOICE_ITEMS_INCLUDE } from "@/lib/invoiceItems";
 
 const VALID_STAGES: ReminderStage[] = ["friendly", "firm", "final"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,7 +49,7 @@ export async function POST(
 
   const invoice = await prisma.invoice.findFirst({
     where: { invoiceNumber, client: { ownerId: session.user.id } },
-    include: { client: true },
+    include: { client: true, items: INVOICE_ITEMS_INCLUDE },
   });
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
@@ -75,7 +76,8 @@ export async function POST(
     invoice.description,
     invoice.balance,
     invoice.client.currency,
-    toIsoDate(invoice.dueDate)
+    toIsoDate(invoice.dueDate),
+    invoice.items
   );
   if (!sent) {
     return NextResponse.json(

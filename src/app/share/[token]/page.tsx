@@ -8,6 +8,7 @@ import { PageLoading } from "@/components/ui/Spinner";
 import { Pagination } from "@/components/ui/Pagination";
 import { invoiceStatusLabel, clientStatusLabel } from "@/lib/badgeHelpers";
 import { defaultInstallmentLabel } from "@/lib/paymentPlan";
+import { InvoiceItemsDisclosure } from "@/components/invoices/InvoiceItemsDisclosure";
 import { usePaginatedResource } from "@/lib/usePaginatedResource";
 import type { ActivityEntry, Client, Invoice, PaymentPlan, SharedClientSummary } from "@/lib/types";
 import {
@@ -274,6 +275,7 @@ function SharedClientView({
                       <p className="mt-0.5 text-xs text-slate-500">
                         Due {formatDate(invoice.dueDate)}
                       </p>
+                      <InvoiceItemsDisclosure items={invoice.items} currency={client.currency} />
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold tabular-nums text-slate-900">

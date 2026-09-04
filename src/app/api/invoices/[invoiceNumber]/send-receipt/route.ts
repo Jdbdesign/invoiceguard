@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { mapActivity, mapInvoice } from "@/lib/mappers";
 import { auth } from "@/auth";
 import { sendPaymentReceipt } from "@/lib/receipts";
+import { INVOICE_ITEMS_INCLUDE } from "@/lib/invoiceItems";
 
 export async function POST(
   _request: Request,
@@ -15,7 +16,7 @@ export async function POST(
 
   const invoice = await prisma.invoice.findFirst({
     where: { invoiceNumber, client: { ownerId: session.user.id } },
-    include: { client: true },
+    include: { client: true, items: INVOICE_ITEMS_INCLUDE },
   });
   if (!invoice) {
     return NextResponse.json({ error: "invoice not found" }, { status: 404 });
