@@ -196,25 +196,34 @@ export function InvoiceFormModal({
             <p className="text-xs font-medium text-slate-600">Line items</p>
             {items.map((item, index) => (
               <div key={index} className="flex items-center gap-2">
-                <input
-                  required
-                  value={item.description}
-                  disabled={amountLocked}
-                  onChange={(e) => updateItemRow(index, { description: e.target.value })}
-                  placeholder="e.g. School fee"
-                  className={`input flex-1 ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
-                />
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.amount}
-                  disabled={amountLocked}
-                  onChange={(e) => updateItemRow(index, { amount: e.target.value })}
-                  placeholder="0.00"
-                  className={`input w-28 ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
-                />
+                {/* Width utilities go on these wrapper divs, not directly on
+                    .input — .input's hand-written `width: 100%` is unlayered
+                    CSS, which Cascade Layers always ranks above Tailwind's
+                    layered utilities, so a Tailwind width class placed
+                    directly on an .input element gets silently overridden. */}
+                <div className="flex-1">
+                  <input
+                    required
+                    value={item.description}
+                    disabled={amountLocked}
+                    onChange={(e) => updateItemRow(index, { description: e.target.value })}
+                    placeholder="e.g. School fee"
+                    className={`input ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
+                  />
+                </div>
+                <div className="w-28 flex-shrink-0">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.amount}
+                    disabled={amountLocked}
+                    onChange={(e) => updateItemRow(index, { amount: e.target.value })}
+                    placeholder="0.00"
+                    className={`input ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
+                  />
+                </div>
                 {!amountLocked && (
                   <button
                     type="button"
