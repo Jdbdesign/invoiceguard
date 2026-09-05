@@ -6,6 +6,7 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Preview,
   Row,
   Section,
@@ -24,6 +25,7 @@ interface ReceiptLineItem {
 
 interface PaymentReceiptEmailProps {
   businessName: string;
+  logoUrl?: string;
   clientName: string;
   invoiceNumber: string;
   description: string;
@@ -44,6 +46,7 @@ interface PaymentReceiptEmailProps {
 // short footer instead of being fabricated.
 export default function PaymentReceiptIndigoEmail({
   businessName,
+  logoUrl,
   clientName,
   invoiceNumber,
   description,
@@ -67,22 +70,32 @@ export default function PaymentReceiptIndigoEmail({
             <Section className="rounded-t-xl border border-b-0 border-solid border-indigo-100 bg-white px-8 pt-8 pb-6">
               <Row>
                 <Column>
-                  <div
-                    style={{
-                      display: "inline-block",
-                      width: 32,
-                      height: 32,
-                      lineHeight: "32px",
-                      borderRadius: 9999,
-                      backgroundColor: "#4f46e5",
-                      color: "#ffffff",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      textAlign: "center",
-                    }}
-                  >
-                    {businessName.charAt(0).toUpperCase()}
-                  </div>
+                  {logoUrl ? (
+                    <Img
+                      src={logoUrl}
+                      width="32"
+                      height="32"
+                      alt={businessName}
+                      style={{ display: "inline-block", borderRadius: 9999, objectFit: "cover" }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        display: "inline-block",
+                        width: 32,
+                        height: 32,
+                        lineHeight: "32px",
+                        borderRadius: 9999,
+                        backgroundColor: "#4f46e5",
+                        color: "#ffffff",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        textAlign: "center",
+                      }}
+                    >
+                      {businessName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <Text className="m-0 mt-2 text-[15px] font-semibold text-slate-900">
                     {businessName}
                   </Text>
@@ -211,6 +224,7 @@ export default function PaymentReceiptIndigoEmail({
               <Text className="m-0 text-xs text-slate-400">
                 © {new Date().getFullYear()} {businessName}
               </Text>
+              <Text className="m-0 mt-2 text-[11px] text-slate-300">Powered by Remitrak</Text>
             </Section>
           </Container>
         </Body>

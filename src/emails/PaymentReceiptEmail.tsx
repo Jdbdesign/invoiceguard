@@ -6,6 +6,7 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Preview,
   Row,
   Section,
@@ -24,6 +25,7 @@ interface ReceiptLineItem {
 
 interface PaymentReceiptEmailProps {
   businessName: string;
+  logoUrl?: string;
   clientName: string;
   invoiceNumber: string;
   description: string;
@@ -37,6 +39,7 @@ interface PaymentReceiptEmailProps {
 // financial confirmation reads unmistakably differently from a reminder.
 export default function PaymentReceiptEmail({
   businessName,
+  logoUrl,
   clientName,
   invoiceNumber,
   description,
@@ -57,6 +60,36 @@ export default function PaymentReceiptEmail({
           style={{ fontFamily: FONT_STACK }}
         >
           <Container className="mx-auto w-full max-w-[600px] px-4 py-10">
+            <Section className="pb-4 text-center">
+              {logoUrl ? (
+                <Img
+                  src={logoUrl}
+                  width="40"
+                  height="40"
+                  alt={businessName}
+                  style={{ display: "inline-block", borderRadius: 9999, objectFit: "cover" }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: "inline-block",
+                    width: 40,
+                    height: 40,
+                    lineHeight: "40px",
+                    borderRadius: 9999,
+                    backgroundColor: "#059669",
+                    color: "#ffffff",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    textAlign: "center",
+                  }}
+                >
+                  {businessName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <Text className="m-0 mt-2 text-[13px] font-semibold text-slate-700">{businessName}</Text>
+            </Section>
+
             <Section className="rounded-t-xl bg-emerald-600 px-8 py-8 text-center">
               <div
                 style={{
@@ -185,6 +218,7 @@ export default function PaymentReceiptEmail({
               <Text className="m-0 text-xs text-slate-400">
                 © {new Date().getFullYear()} {businessName}
               </Text>
+              <Text className="m-0 mt-2 text-[11px] text-slate-300">Powered by Remitrak</Text>
             </Section>
           </Container>
         </Body>
