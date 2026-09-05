@@ -4,6 +4,12 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
+import {
+  AuthLayout,
+  authButtonClass,
+  authLinkClass,
+  authPasswordFieldClass,
+} from "@/components/auth/AuthLayout";
 
 export default function ResetPasswordPage() {
   return (
@@ -77,98 +83,73 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
-            <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" strokeWidth={2}>
-              <path
-                d="M12 2.5l7.5 3.2v5.4c0 5-3.2 8.9-7.5 10.4-4.3-1.5-7.5-5.4-7.5-10.4V5.7L12 2.5z"
-                stroke="currentColor"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M9 12.2l2.1 2.1L15.3 10"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <span className="text-lg font-semibold tracking-tight text-white">Remitrak</span>
+    <AuthLayout title="Reset password" subtitle="Choose a new password for your account.">
+      {tokenStatus === "checking" && (
+        <p className="text-sm text-[#9A9A9A]">Checking your reset link…</p>
+      )}
+
+      {tokenStatus === "invalid" && (
+        <div>
+          <p className="text-sm text-[#C4C4C4]">This reset link is invalid or has expired.</p>
+          <a href="/forgot-password" className={`mt-4 inline-block text-xs ${authLinkClass}`}>
+            Request a new link
+          </a>
         </div>
+      )}
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-6 shadow-xl shadow-black/20">
-          {tokenStatus === "checking" && (
-            <p className="text-sm text-slate-400">Checking your reset link…</p>
-          )}
+      {tokenStatus === "valid" && done && (
+        <div>
+          <p className="text-sm text-[#C4C4C4]">Your password has been reset.</p>
+          <a href="/login" className={`mt-4 inline-block text-xs ${authLinkClass}`}>
+            Back to login
+          </a>
+        </div>
+      )}
 
-          {tokenStatus === "invalid" && (
-            <div>
-              <p className="text-sm text-slate-300">This reset link is invalid or has expired.</p>
-              <a
-                href="/forgot-password"
-                className="mt-3 inline-block text-xs font-medium text-blue-400 hover:text-blue-300"
-              >
-                Request a new link
-              </a>
-            </div>
-          )}
-
-          {tokenStatus === "valid" && done && (
-            <div>
-              <p className="text-sm text-slate-300">Your password has been reset.</p>
-              <a
-                href="/login"
-                className="mt-3 inline-block text-xs font-medium text-blue-400 hover:text-blue-300"
-              >
-                Back to login
-              </a>
-            </div>
-          )}
-
-          {tokenStatus === "valid" && !done && (
-            <form onSubmit={handleSubmit}>
-              <label className="mb-1.5 block text-xs font-medium text-slate-400">New password</label>
+      {tokenStatus === "valid" && !done && (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div>
+            <div className={authPasswordFieldClass}>
               <PasswordInput
                 ref={passwordRef}
                 value={password}
                 onChange={setPassword}
-                placeholder="At least 8 characters"
+                placeholder="New password"
                 autoComplete="new-password"
                 autoFocus
               />
-              <PasswordStrengthMeter password={password} />
+            </div>
+            <PasswordStrengthMeter password={password} />
+          </div>
 
-              <label className="mb-1.5 mt-4 block text-xs font-medium text-slate-400">
-                Confirm password
-              </label>
+          <div>
+            <div className={authPasswordFieldClass}>
               <PasswordInput
                 ref={confirmPasswordRef}
                 value={confirmPassword}
                 onChange={setConfirmPassword}
                 onBlur={() => setConfirmTouched(true)}
-                placeholder="Re-enter password"
+                placeholder="Confirm password"
                 aria-invalid={confirmTouched && passwordsMismatch}
                 autoComplete="new-password"
               />
-              {confirmTouched && passwordsMismatch && (
-                <p className="mt-1.5 text-xs font-medium text-rose-400">Passwords don&apos;t match.</p>
-              )}
+            </div>
+            {confirmTouched && passwordsMismatch && (
+              <p className="mt-1.5 text-xs font-medium text-rose-400">Passwords don&apos;t match.</p>
+            )}
+          </div>
 
-              {error && <p className="mt-2.5 text-xs font-medium text-red-400">{error}</p>}
+          {error && <p className="text-xs font-medium text-red-400">{error}</p>}
 
-              <button
-                type="submit"
-                disabled={submitting || password.length === 0 || passwordsMismatch}
-                className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? "Resetting…" : "Reset password"}
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
+          <button
+            type="submit"
+            disabled={submitting || password.length === 0 || passwordsMismatch}
+            className={`mt-2 ${authButtonClass}`}
+          >
+            {submitting ? "Resetting…" : "Reset password"}
+          </button>
+        </form>
+      )}
+    </AuthLayout>
   );
 }

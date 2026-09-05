@@ -19,7 +19,8 @@ export async function proxy(request: NextRequest) {
     PUBLIC_PATHS.has(pathname) ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/share/") ||
-    pathname.startsWith("/api/share/")
+    pathname.startsWith("/api/share/") ||
+    pathname.startsWith("/auth/")
   ) {
     return NextResponse.next();
   }
