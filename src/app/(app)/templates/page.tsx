@@ -1,13 +1,22 @@
 import { render } from "react-email";
 import { TemplateCard } from "@/components/templates/TemplateCard";
 import { RECEIPT_TEMPLATES } from "@/lib/receiptTemplates";
+import { getOrCreateSettings } from "@/lib/settings";
+import { auth } from "@/auth";
 
 export default async function TemplatesPage() {
+  const session = await auth();
+  const settings = session?.user ? await getOrCreateSettings(session.user.id) : null;
+
   const templates = await Promise.all(
-    RECEIPT_TEMPLATES.map(async (template) => ({
-      template,
-      html: await render(template.Component(template.sampleProps)),
-    }))
+    RECEIPT_TEMPLATES.map(async (template) => {
+      const props = {
+        ...template.sampleProps,
+        businessName: settings?.businessName ?? template.sampleProps.businessName,
+        logoUrl: settings?.logoUrl ?? undefined,
+      };
+      return { template, html: await render(template.Component(props)) };
+    })
   );
 
   return (
