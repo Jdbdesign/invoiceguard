@@ -10,6 +10,9 @@ import {
   PASSWORD_RECONFIRM_MIN_MINUTES,
   PASSWORD_RECONFIRM_MAX_MINUTES,
 } from "@/lib/passwordReconfirmBounds";
+import { LogoUploadField } from "@/components/business/LogoUploadField";
+import { BUSINESS_TYPES } from "@/lib/businessTypes";
+import { COUNTRIES } from "@/lib/countries";
 import type { ReminderStage } from "@/lib/types";
 
 const STAGES: {
@@ -50,6 +53,8 @@ export default function SettingsPage() {
     updatePasswordReconfirmMinutes,
     sendReceiptImmediately,
     updateSendReceiptImmediately,
+    businessProfile,
+    updateBusinessProfile,
     runDailyCheck,
   } = useAppData();
   const { showToast } = useToast();
@@ -63,6 +68,42 @@ export default function SettingsPage() {
   const [savingReconfirm, setSavingReconfirm] = useState(false);
 
   const [savingReceiptSetting, setSavingReceiptSetting] = useState(false);
+
+  const [businessDraft, setBusinessDraft] = useState(businessProfile);
+  const [syncedBusinessProfile, setSyncedBusinessProfile] = useState(businessProfile);
+  const [savingBusiness, setSavingBusiness] = useState(false);
+
+  if (businessProfile !== syncedBusinessProfile) {
+    setSyncedBusinessProfile(businessProfile);
+    setBusinessDraft(businessProfile);
+  }
+
+  const isBusinessDirty =
+    businessDraft.businessName !== businessProfile.businessName ||
+    businessDraft.businessType !== businessProfile.businessType ||
+    businessDraft.logoUrl !== businessProfile.logoUrl ||
+    businessDraft.businessEmail !== businessProfile.businessEmail ||
+    businessDraft.businessPhone !== businessProfile.businessPhone ||
+    businessDraft.country !== businessProfile.country;
+
+  async function handleSaveBusiness() {
+    setSavingBusiness(true);
+    try {
+      await updateBusinessProfile({
+        businessName: businessDraft.businessName ?? "",
+        businessType: businessDraft.businessType ?? "",
+        logoUrl: businessDraft.logoUrl ?? "",
+        businessEmail: businessDraft.businessEmail ?? "",
+        businessPhone: businessDraft.businessPhone ?? "",
+        country: businessDraft.country ?? "",
+      });
+      showToast("Business profile saved");
+    } catch {
+      showToast("Failed to save — see console for details");
+    } finally {
+      setSavingBusiness(false);
+    }
+  }
 
   if (reminderSchedule !== syncedSchedule) {
     setSyncedSchedule(reminderSchedule);
@@ -157,6 +198,87 @@ export default function SettingsPage() {
           {checkingOverdue ? "Running…" : "Run daily check"}
         </button>
       </div>
+
+      <Card>
+        <CardHeader
+          title="Business"
+          subtitle="Shown on receipt emails sent to your clients"
+          action={
+            <button
+              onClick={handleSaveBusiness}
+              disabled={!isBusinessDirty || savingBusiness}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              {savingBusiness ? "Saving…" : "Save changes"}
+            </button>
+          }
+        />
+        <div className="flex flex-col gap-4 px-5 py-5">
+          <LogoUploadField
+            logoUrl={businessDraft.logoUrl}
+            businessName={businessDraft.businessName ?? ""}
+            onUploaded={(url) => setBusinessDraft((d) => ({ ...d, logoUrl: url }))}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Business name</span>
+              <input
+                value={businessDraft.businessName ?? ""}
+                onChange={(e) => setBusinessDraft((d) => ({ ...d, businessName: e.target.value }))}
+                className="input"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Business type</span>
+              <select
+                value={businessDraft.businessType ?? ""}
+                onChange={(e) => setBusinessDraft((d) => ({ ...d, businessType: e.target.value }))}
+                className="input"
+              >
+                <option value="">Select a type</option>
+                {BUSINESS_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Business email</span>
+              <input
+                type="email"
+                value={businessDraft.businessEmail ?? ""}
+                onChange={(e) => setBusinessDraft((d) => ({ ...d, businessEmail: e.target.value }))}
+                className="input"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Business phone</span>
+              <input
+                type="tel"
+                value={businessDraft.businessPhone ?? ""}
+                onChange={(e) => setBusinessDraft((d) => ({ ...d, businessPhone: e.target.value }))}
+                className="input"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Country</span>
+              <select
+                value={businessDraft.country ?? ""}
+                onChange={(e) => setBusinessDraft((d) => ({ ...d, country: e.target.value }))}
+                className="input"
+              >
+                <option value="">Select a country</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+      </Card>
 
       <Card>
         <CardHeader

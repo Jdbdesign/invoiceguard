@@ -70,6 +70,12 @@ type SettingsRow = {
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
   activeReceiptTemplateId: string;
+  businessName: string | null;
+  businessType: string | null;
+  logoUrl: string | null;
+  businessEmail: string | null;
+  businessPhone: string | null;
+  country: string | null;
 };
 
 export function mapClient(c: ClientRow): Client {
@@ -153,5 +159,11 @@ export function mapSettings(s: SettingsRow): AppSettings {
     passwordReconfirmMinutes: s.passwordReconfirmMinutes,
     sendReceiptImmediately: s.sendReceiptImmediately,
     activeReceiptTemplateId: s.activeReceiptTemplateId,
+    businessName: s.businessName,
+    businessType: s.businessType,
+    logoUrl: s.logoUrl,
+    businessEmail: s.businessEmail,
+    businessPhone: s.businessPhone,
+    country: s.country,
   };
 }

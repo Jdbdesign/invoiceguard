@@ -75,6 +75,14 @@ interface AppDataContextValue {
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
   activeReceiptTemplateId: string;
+  businessProfile: {
+    businessName: string | null;
+    businessType: string | null;
+    logoUrl: string | null;
+    businessEmail: string | null;
+    businessPhone: string | null;
+    country: string | null;
+  };
   loading: boolean;
   addClient: (input: NewClientInput) => Promise<Client>;
   addInvoice: (input: NewInvoiceInput) => Promise<Invoice>;
@@ -106,6 +114,14 @@ interface AppDataContextValue {
   updatePasswordReconfirmMinutes: (minutes: number) => Promise<void>;
   updateSendReceiptImmediately: (enabled: boolean) => Promise<void>;
   updateActiveReceiptTemplate: (templateId: string) => Promise<void>;
+  updateBusinessProfile: (partial: Partial<{
+    businessName: string;
+    businessType: string;
+    logoUrl: string;
+    businessEmail: string;
+    businessPhone: string;
+    country: string;
+  }>) => Promise<void>;
   runDailyCheck: () => Promise<{ remindersSent: number }>;
 }
 
@@ -153,6 +169,24 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   );
   const [sendReceiptImmediately, setSendReceiptImmediately] = useState<boolean>(false);
   const [activeReceiptTemplateId, setActiveReceiptTemplateId] = useState<string>("default");
+  // Grouped into one object (unlike the other settings fields, which are
+  // separate useStates) because these six fields are always edited and
+  // saved together as a single Settings-page section.
+  const [businessProfile, setBusinessProfile] = useState<{
+    businessName: string | null;
+    businessType: string | null;
+    logoUrl: string | null;
+    businessEmail: string | null;
+    businessPhone: string | null;
+    country: string | null;
+  }>({
+    businessName: null,
+    businessType: null,
+    logoUrl: null,
+    businessEmail: null,
+    businessPhone: null,
+    country: null,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -176,6 +210,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setPasswordReconfirmMinutes(settingsRes.passwordReconfirmMinutes);
         setSendReceiptImmediately(settingsRes.sendReceiptImmediately);
         setActiveReceiptTemplateId(settingsRes.activeReceiptTemplateId);
+        setBusinessProfile({
+          businessName: settingsRes.businessName,
+          businessType: settingsRes.businessType,
+          logoUrl: settingsRes.logoUrl,
+          businessEmail: settingsRes.businessEmail,
+          businessPhone: settingsRes.businessPhone,
+          country: settingsRes.country,
+        });
       } catch (error) {
         console.error("Failed to load InvoiceGuard data", error);
       } finally {
@@ -628,6 +670,31 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setActiveReceiptTemplateId(updated.activeReceiptTemplateId);
   }, []);
 
+  const updateBusinessProfile = useCallback(
+    async (partial: Partial<{
+      businessName: string;
+      businessType: string;
+      logoUrl: string;
+      businessEmail: string;
+      businessPhone: string;
+      country: string;
+    }>) => {
+      const updated = await fetchJson<AppSettings>("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify(partial),
+      });
+      setBusinessProfile({
+        businessName: updated.businessName,
+        businessType: updated.businessType,
+        logoUrl: updated.logoUrl,
+        businessEmail: updated.businessEmail,
+        businessPhone: updated.businessPhone,
+        country: updated.country,
+      });
+    },
+    []
+  );
+
   const runDailyCheck = useCallback(async () => {
     const result = await fetchJson<{ remindersSent: number }>(
       "/api/cron/check-overdue",
@@ -650,6 +717,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       passwordReconfirmMinutes,
       sendReceiptImmediately,
       activeReceiptTemplateId,
+      businessProfile,
       loading,
       addClient,
       addInvoice,
@@ -669,6 +737,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       updatePasswordReconfirmMinutes,
       updateSendReceiptImmediately,
       updateActiveReceiptTemplate,
+      updateBusinessProfile,
       runDailyCheck,
     }),
     [
@@ -680,6 +749,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       passwordReconfirmMinutes,
       sendReceiptImmediately,
       activeReceiptTemplateId,
+      businessProfile,
       loading,
       addClient,
       addInvoice,
@@ -699,6 +769,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       updatePasswordReconfirmMinutes,
       updateSendReceiptImmediately,
       updateActiveReceiptTemplate,
+      updateBusinessProfile,
       runDailyCheck,
     ]
   );

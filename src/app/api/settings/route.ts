@@ -8,6 +8,7 @@ import {
   PASSWORD_RECONFIRM_MAX_MINUTES,
 } from "@/lib/passwordReconfirmBounds";
 import { RECEIPT_TEMPLATES } from "@/lib/receiptTemplates";
+import { BUSINESS_TYPES } from "@/lib/businessTypes";
 
 export async function GET() {
   const session = await auth();
@@ -29,6 +30,13 @@ export async function PUT(request: Request) {
     passwordReconfirmMinutes?: number;
     sendReceiptImmediately?: boolean;
     activeReceiptTemplateId?: string;
+    businessName?: string | null;
+    businessType?: string | null;
+    logoUrl?: string | null;
+    businessEmail?: string | null;
+    businessPhone?: string | null;
+    country?: string | null;
+    onboardingCompletedAt?: Date;
   } = {};
 
   const hasSchedule =
@@ -94,6 +102,46 @@ export async function PUT(request: Request) {
     }
 
     data.activeReceiptTemplateId = activeReceiptTemplateId;
+  }
+
+  if (body.businessName !== undefined) {
+    const businessName = String(body.businessName).trim();
+    data.businessName = businessName.length > 0 ? businessName : null;
+  }
+
+  if (body.businessType !== undefined) {
+    const businessType = String(body.businessType).trim();
+    if (businessType.length > 0 && !BUSINESS_TYPES.includes(businessType as (typeof BUSINESS_TYPES)[number])) {
+      return NextResponse.json(
+        { error: "businessType must match a known business type" },
+        { status: 400 }
+      );
+    }
+    data.businessType = businessType.length > 0 ? businessType : null;
+  }
+
+  if (body.logoUrl !== undefined) {
+    const logoUrl = body.logoUrl ? String(body.logoUrl).trim() : "";
+    data.logoUrl = logoUrl.length > 0 ? logoUrl : null;
+  }
+
+  if (body.businessEmail !== undefined) {
+    const businessEmail = body.businessEmail ? String(body.businessEmail).trim() : "";
+    data.businessEmail = businessEmail.length > 0 ? businessEmail : null;
+  }
+
+  if (body.businessPhone !== undefined) {
+    const businessPhone = body.businessPhone ? String(body.businessPhone).trim() : "";
+    data.businessPhone = businessPhone.length > 0 ? businessPhone : null;
+  }
+
+  if (body.country !== undefined) {
+    const country = body.country ? String(body.country).trim() : "";
+    data.country = country.length > 0 ? country : null;
+  }
+
+  if (body.completeOnboarding === true) {
+    data.onboardingCompletedAt = new Date();
   }
 
   await getOrCreateSettings(session.user.id);

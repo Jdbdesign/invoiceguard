@@ -5,6 +5,10 @@ import { AuthCarousel } from "./AuthCarousel";
 export const authInputClass =
   "w-full rounded-xl border border-[#2C2C2C] bg-[#131313] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-[#6E6E6E] focus:border-[#007ACC] focus:ring-1 focus:ring-[#007ACC]";
 
+/** Select variant of authInputClass — same dark styling, native chevron. */
+export const authSelectClass =
+  "w-full rounded-xl border border-[#2C2C2C] bg-[#131313] px-4 py-3.5 text-sm text-white outline-none transition focus:border-[#007ACC] focus:ring-1 focus:ring-[#007ACC]";
+
 /**
  * Applied to the wrapper around <PasswordInput /> so the auth pages can restyle
  * that shared component without changing it (it is also used by the in-app

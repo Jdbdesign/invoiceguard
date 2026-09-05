@@ -90,7 +90,7 @@ export async function POST(
         client: invoice.client,
         items: updatedInvoice.items,
       },
-      settings.activeReceiptTemplateId
+      settings
     );
     if (receiptResult) {
       finalInvoice = receiptResult.invoice;

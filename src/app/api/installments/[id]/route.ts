@@ -138,7 +138,7 @@ export async function PATCH(
           client: installment.paymentPlan.invoice.client,
           items: updatedInvoice.items,
         },
-        settings.activeReceiptTemplateId
+        settings
       );
       if (receiptResult) {
         finalInvoice = receiptResult.invoice;

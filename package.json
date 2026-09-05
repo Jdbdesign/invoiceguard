@@ -17,6 +17,7 @@
     "db:resolve-prod-invoice-items-migration": "tsx prisma/resolve-prod-invoice-items-migration.ts",
     "db:apply-prod-active-receipt-template-migration": "tsx prisma/apply-prod-active-receipt-template-migration.ts",
     "db:resolve-prod-active-receipt-template-migration": "tsx prisma/resolve-prod-active-receipt-template-migration.ts",
+    "db:apply-prod-add-business-profile-migration": "tsx prisma/apply-prod-add-business-profile-migration.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
@@ -26,6 +27,7 @@
     "@anthropic-ai/sdk": "^0.120.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@vercel/blob": "^2.8.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^17.4.2",
     "next": "16.3.2",
