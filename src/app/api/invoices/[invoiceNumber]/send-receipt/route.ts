@@ -36,7 +36,7 @@ export async function POST(
   }
 
   const settings = await getOrCreateSettings(session.user.id);
-  const result = await sendPaymentReceipt(invoice, settings.activeReceiptTemplateId);
+  const result = await sendPaymentReceipt(invoice, settings);
   if (!result) {
     return NextResponse.json({ error: "failed to send receipt email" }, { status: 502 });
   }
