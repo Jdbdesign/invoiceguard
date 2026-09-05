@@ -11,7 +11,9 @@ import {
   authInputClass,
   authLinkClass,
   authPasswordFieldClass,
+  authSelectClass,
 } from "@/components/auth/AuthLayout";
+import { BUSINESS_TYPES } from "@/lib/businessTypes";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -19,6 +21,8 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmTouched, setConfirmTouched] = useState(false);
+  const [businessName, setBusinessName] = useState("");
+  const [businessType, setBusinessType] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // Starts read-only so Chrome's silent fill-on-page-load skips this field —
@@ -52,7 +56,12 @@ export default function SignupPage() {
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailValue, password: passwordValue }),
+        body: JSON.stringify({
+          email: emailValue,
+          password: passwordValue,
+          businessName,
+          businessType,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -71,7 +80,7 @@ export default function SignupPage() {
         setSubmitting(false);
         return;
       }
-      router.push("/");
+      router.push("/onboarding/business");
       router.refresh();
     } catch {
       setError("Something went wrong. Try again.");
@@ -134,11 +143,38 @@ export default function SignupPage() {
           )}
         </div>
 
+        <input
+          value={businessName}
+          onChange={(e) => setBusinessName(e.target.value)}
+          placeholder="Business name"
+          className={authInputClass}
+        />
+
+        <select
+          value={businessType}
+          onChange={(e) => setBusinessType(e.target.value)}
+          className={authSelectClass}
+        >
+          <option value="">Business type</option>
+          {BUSINESS_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+
         {error && <p className="text-xs font-medium text-red-400">{error}</p>}
 
         <button
           type="submit"
-          disabled={submitting || !email || password.length === 0 || passwordsMismatch}
+          disabled={
+            submitting ||
+            !email ||
+            password.length === 0 ||
+            passwordsMismatch ||
+            !businessName.trim() ||
+            !businessType
+          }
           className={`mt-2 ${authButtonClass}`}
         >
           {submitting ? "Creating account…" : "Create account"}
