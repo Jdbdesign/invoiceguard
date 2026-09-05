@@ -53,6 +53,11 @@ export function AuthLayout({
 
         <main className="flex w-full flex-1 items-center justify-center px-6 py-12 sm:px-12 lg:w-1/2 lg:px-12 xl:px-16 [@media(min-height:850px)]:py-16">
           <div className="w-full max-w-[400px]">
+            {/* Mobile/tablet only — below lg: the aside (and its logo) is hidden,
+                so this is the only branding on the page at that size. */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- decorative static SVG, no next/image usage elsewhere in this repo */}
+            <img src="/auth/logo.svg" alt="Remitrak" className="mb-8 h-6 w-auto lg:hidden" />
+
             <h1 className="text-[32px] font-semibold leading-tight tracking-tight text-white">
               {title}
             </h1>
