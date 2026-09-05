@@ -16,7 +16,7 @@ const SLIDES = [
   {
     src: "/auth/slide-3.svg",
     alt: "Illustration of client and invoice overview",
-    caption: ["Every Client, Every Dollar,", "One Clear View"],
+    caption: ["Every Client, Every Payment,", "One Clear View"],
   },
 ];
 
