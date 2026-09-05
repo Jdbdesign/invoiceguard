@@ -137,8 +137,15 @@ model Settings {
   firmReminderDays         Int     @default(15)
   finalNoticeDays          Int     @default(45)
   passwordReconfirmMinutes Int     @default(20)
-  sendReceiptImmediately   Boolean @default(false)
-  activeReceiptTemplateId  String  @default("default")
+  sendReceiptImmediately   Boolean   @default(false)
+  activeReceiptTemplateId  String    @default("default")
+  businessName             String?
+  businessType             String?
+  logoUrl                  String?
+  businessEmail            String?
+  businessPhone            String?
+  country                  String?
+  onboardingCompletedAt    DateTime?
 
   owner User @relation(fields: [ownerId], references: [id])
 }

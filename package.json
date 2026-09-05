@@ -17,6 +17,7 @@
     "db:resolve-prod-invoice-items-migration": "tsx prisma/resolve-prod-invoice-items-migration.ts",
     "db:apply-prod-active-receipt-template-migration": "tsx prisma/apply-prod-active-receipt-template-migration.ts",
     "db:resolve-prod-active-receipt-template-migration": "tsx prisma/resolve-prod-active-receipt-template-migration.ts",
+    "db:apply-prod-add-business-profile-migration": "tsx prisma/apply-prod-add-business-profile-migration.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
