@@ -41,6 +41,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   });
   if (!upload) return NextResponse.json({ error: "upload not found" }, { status: 404 });
 
+  if (upload.status !== "needs_review") {
+    if (upload.status === "reviewed") {
+      return NextResponse.json(
+        { error: "This statement has already been reviewed." },
+        { status: 400 },
+      );
+    }
+    return NextResponse.json(
+      { error: "This statement isn't ready for review yet." },
+      { status: 400 },
+    );
+  }
+
   const body = (await request.json()) as { rows?: unknown };
   const rows = parseRows(body.rows);
   if (!rows) {
