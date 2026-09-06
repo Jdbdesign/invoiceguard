@@ -163,6 +163,9 @@ prod manually).
    scanned page), stop and mark `status: "failed"` with `errorMessage: "This
    looks like a scanned or image-based PDF, which isn't supported yet —
    please upload a text-based statement export."` No OCR fallback in v1.
+   The 50-char threshold is a starting point, not a validated constant —
+   expect to tune it once tested against real statement PDFs rather than
+   synthetic ones.
 5. **Structuring via Claude**: the extracted text is sent to Claude (reusing
    the existing `@anthropic-ai/sdk` usage pattern in `src/lib/claude.ts`)
    with a prompt to extract every transaction row as
@@ -170,9 +173,12 @@ prod manually).
    debit), explicitly instructed to ignore headers, footers, page numbers,
    and running-balance-only lines. This absorbs the layout inconsistency
    across different (especially Nigerian) bank statement formats without
-   per-bank regex parsers. Claude's response is parsed defensively — a
-   malformed/unparsable response sets `status: "failed"` with a generic
-   parsing-error message rather than surfacing a raw exception.
+   per-bank regex parsers. The whole call — the API request itself (network
+   error, rate limit, timeout) as well as parsing its response — is wrapped
+   in try/catch; either kind of failure sets `status: "failed"` with a
+   generic "couldn't parse this statement, please try again" message rather
+   than surfacing a raw exception or leaving the upload stuck in
+   `"parsing"`.
 6. Parsed rows are stored in `BankStatementUpload.parsedRowsJson`,
    `status` becomes `"needs_review"`, and the rows are returned to the
    client. **Nothing is written to `BankTransaction` yet.**
