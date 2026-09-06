@@ -37,8 +37,12 @@ export async function POST(
 
   const settings = await getOrCreateSettings(session.user.id);
   const result = await sendPaymentReceipt(invoice, settings);
-  if (!result) {
-    return NextResponse.json({ error: "failed to send receipt email" }, { status: 502 });
+  if (!result.ok) {
+    const error =
+      result.reason === "missing_from_address"
+        ? "Email sending is misconfigured — contact support."
+        : "Failed to send receipt email — the email provider rejected the request.";
+    return NextResponse.json({ error }, { status: 502 });
   }
 
   return NextResponse.json({

@@ -140,7 +140,7 @@ export async function PATCH(
         },
         settings
       );
-      if (receiptResult) {
+      if (receiptResult.ok) {
         finalInvoice = receiptResult.invoice;
         receiptActivity = mapActivity(receiptResult.activity);
       }

@@ -1,0 +1,38 @@
+name: Check required env vars
+
+# Runs on every PR into master, which is what actually blocks a bad
+# merge/deploy (gated via the required status check in branch protection).
+# Also runs on push to master: branch protection's required check only
+# blocks merges, not direct pushes, so a push-triggered run can't stop a
+# bad direct push before Vercel's git integration deploys it — but it
+# still surfaces a config gap immediately instead of silently.
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  check-required-env:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # This job never touches the database — it's only here because `npm
+      # ci` runs the `postinstall` hook (`prisma generate`), and
+      # prisma.config.ts calls env("DATABASE_URL") at config-load time,
+      # which throws if the var is completely unset. Any syntactically
+      # valid connection string works; `prisma generate` never connects.
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run check:required-env

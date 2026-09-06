@@ -27,7 +27,7 @@ interface ReceiptSettings {
 
 export async function sendPaymentReceipt(invoice: ReceiptInvoice, settings: ReceiptSettings) {
   const datePaidIso = todayIso();
-  const sent = await sendReceiptEmail(
+  const result = await sendReceiptEmail(
     invoice.client.email,
     invoice.client.name,
     invoice.invoiceNumber,
@@ -40,7 +40,7 @@ export async function sendPaymentReceipt(invoice: ReceiptInvoice, settings: Rece
     settings.logoUrl,
     invoice.items
   );
-  if (!sent) return null;
+  if (!result.sent) return { ok: false as const, reason: result.reason };
 
   const amountLabel = formatCurrency(invoice.amount, invoice.client.currency);
   const [updatedInvoice, activity] = await prisma.$transaction([
@@ -60,5 +60,5 @@ export async function sendPaymentReceipt(invoice: ReceiptInvoice, settings: Rece
     }),
   ]);
 
-  return { invoice: updatedInvoice, activity };
+  return { ok: true as const, invoice: updatedInvoice, activity };
 }

@@ -83,7 +83,7 @@ export async function POST(
       },
       settings
     );
-    if (receiptResult) {
+    if (receiptResult.ok) {
       finalInvoice = receiptResult.invoice;
       receiptActivity = mapActivity(receiptResult.activity);
     }

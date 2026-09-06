@@ -4,14 +4,37 @@ import { ReminderEmail } from "@/emails/ReminderEmail";
 import { getActiveReceiptTemplate } from "@/lib/receiptTemplates";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-const FROM_ADDRESS = "Remitrak <onboarding@resend.dev>";
-const REMINDER_FROM_ADDRESS =
-  process.env.REMINDER_FROM_ADDRESS ?? "Remitrak <onboarding@resend.dev>";
-const RECEIPT_FROM_ADDRESS =
-  process.env.RECEIPT_FROM_ADDRESS ?? "Remitrak <onboarding@resend.dev>";
+// VERCEL_ENV (not NODE_ENV, which is "production" for Preview builds too)
+// is the only reliable signal that this is the real production deployment.
+const IS_PRODUCTION = process.env.VERCEL_ENV === "production";
+
+// A missing FROM-address env var must never silently fall back to Resend's
+// sandbox sender in production — onboarding@resend.dev can only deliver to
+// the Resend account's own verified email, so every send to a real
+// recipient would be rejected with no visible error anywhere (this is
+// exactly what happened to RECEIPT_FROM_ADDRESS: it shipped without ever
+// being added to Vercel, and receipts silently stopped sending). Outside
+// production (local dev, Preview) the sandbox address is a fine default
+// since no real inbox is on the line.
+function resolveFromAddress(envVarName: string): string | null {
+  const configured = process.env[envVarName];
+  if (configured) return configured;
+  if (IS_PRODUCTION) {
+    console.error(
+      `[CONFIG ERROR] ${envVarName} is not set in production — refusing to fall back to the Resend sandbox address (onboarding@resend.dev), which cannot deliver to real recipients.`
+    );
+    return null;
+  }
+  return "Remitrak <onboarding@resend.dev>";
+}
+
+const RESET_PASSWORD_FROM_ADDRESS = resolveFromAddress("RESET_PASSWORD_FROM_ADDRESS");
+const REMINDER_FROM_ADDRESS = resolveFromAddress("REMINDER_FROM_ADDRESS");
+const RECEIPT_FROM_ADDRESS = resolveFromAddress("RECEIPT_FROM_ADDRESS");
 const BUSINESS_NAME = "Remitrak";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<boolean> {
+  if (!RESET_PASSWORD_FROM_ADDRESS) return false;
   try {
     // Constructed lazily (not at module scope) because the Resend SDK throws
     // synchronously in its constructor when the API key is missing/empty —
@@ -20,7 +43,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
     // handler code runs.
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
-      from: FROM_ADDRESS,
+      from: RESET_PASSWORD_FROM_ADDRESS,
       to: [to],
       subject: "Reset your Remitrak password",
       html: `
@@ -56,6 +79,7 @@ export async function sendReminderEmail(
   dueDateIso: string,
   items?: { description: string; amount: number }[]
 ): Promise<boolean> {
+  if (!REMINDER_FROM_ADDRESS) return false;
   try {
     const amountDue = formatCurrency(balance, currency);
     const dueDate = formatDate(dueDateIso);
@@ -102,6 +126,16 @@ export async function sendReminderEmail(
 // interpolation, never AI-drafted, so a hallucinated total or date can never
 // reach a client. Unlike sendReminderEmail, none of the inputs here are
 // free-text drafted elsewhere; every field is real, already-persisted data.
+//
+// Returns a discriminated result (rather than a bare boolean like the other
+// send functions) because callers need to tell a config problem apart from
+// a real delivery failure: sendPaymentReceipt's manual "Send receipt" route
+// shows the user something actionable ("misconfigured — contact support")
+// instead of implying the email bounced.
+export type SendReceiptEmailResult =
+  | { sent: true }
+  | { sent: false; reason: "missing_from_address" | "send_failed" };
+
 export async function sendReceiptEmail(
   to: string,
   clientName: string,
@@ -114,7 +148,8 @@ export async function sendReceiptEmail(
   businessName: string | null,
   logoUrl: string | null,
   items?: { description: string; amount: number }[]
-): Promise<boolean> {
+): Promise<SendReceiptEmailResult> {
+  if (!RECEIPT_FROM_ADDRESS) return { sent: false, reason: "missing_from_address" };
   try {
     const { Component } = getActiveReceiptTemplate(activeReceiptTemplateId);
     const element = Component({
@@ -148,11 +183,11 @@ export async function sendReceiptEmail(
 
     if (error) {
       console.error("Failed to send receipt email:", error);
-      return false;
+      return { sent: false, reason: "send_failed" };
     }
-    return true;
+    return { sent: true };
   } catch (err) {
     console.error("Failed to send receipt email:", err);
-    return false;
+    return { sent: false, reason: "send_failed" };
   }
 }
