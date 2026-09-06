@@ -81,4 +81,16 @@ describe("mapBankTransaction", () => {
       ignoredAt: undefined,
     });
   });
+
+  it("converts a non-null ignoredAt to an ISO date string", () => {
+    const result = mapBankTransaction({
+      id: "txn_2",
+      uploadId: "up_1",
+      date: new Date("2026-03-01T00:00:00.000Z"),
+      description: "Bank fee",
+      amount: -50,
+      ignoredAt: new Date("2026-03-05T00:00:00.000Z"),
+    });
+    expect(result.ignoredAt).toBe("2026-03-05");
+  });
 });

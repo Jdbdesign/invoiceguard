@@ -232,6 +232,6 @@ export function mapBankTransaction(t: BankTransactionRow): BankTransaction {
     date: toIsoDate(t.date),
     description: t.description,
     amount: t.amount,
-    ignoredAt: t.ignoredAt ?? undefined,
+    ignoredAt: t.ignoredAt ? toIsoDate(t.ignoredAt) : undefined,
   };
 }
