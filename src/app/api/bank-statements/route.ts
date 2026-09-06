@@ -64,7 +64,10 @@ export async function POST(request: Request) {
   // that isn't present in this project. Importing `pdf-parse/lib/pdf-parse.js`
   // directly reaches the same parsing function without ever loading
   // index.js's debug block. Verified locally: `import("pdf-parse")` reliably
-  // crashes with that ENOENT; this import path does not.
+  // crashes with that ENOENT; this import path does not. Do not simplify this
+  // to `import("pdf-parse")` or bump past 1.1.1 without re-verifying this bug
+  // is actually fixed upstream — a routine dependency update that "cleans up"
+  // this import path will silently reintroduce the crash.
   const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
   let extractedText: string;
   let pageCount: number;
