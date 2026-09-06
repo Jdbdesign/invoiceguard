@@ -1,3 +1,8 @@
+// In-memory, per-instance only — on Vercel this map is NOT shared across
+// serverless invocations. A cold start (or landing on a different warm
+// instance) resets a user's count to zero, so this cap is best-effort, not
+// a hard guarantee. Accepted for v1 to avoid a schema change; revisit with
+// a persisted counter if this route needs a stronger guarantee later.
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
