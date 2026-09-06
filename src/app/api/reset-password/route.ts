@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { validatePasswordResetToken, consumePasswordResetToken } from "@/lib/passwordReset";
-
-const MIN_PASSWORD_LENGTH = 8;
+import { passwordValidationError } from "@/lib/passwordValidation";
 
 export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get("token") ?? "";
@@ -21,11 +20,9 @@ export async function POST(request: Request) {
   if (!token) {
     return NextResponse.json({ error: "missing reset token" }, { status: 400 });
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return NextResponse.json(
-      { error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` },
-      { status: 400 }
-    );
+  const passwordError = passwordValidationError(password);
+  if (passwordError) {
+    return NextResponse.json({ error: passwordError }, { status: 400 });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
