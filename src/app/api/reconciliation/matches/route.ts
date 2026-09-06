@@ -54,6 +54,7 @@ export async function GET() {
         transaction: mapBankTransaction(transactionById.get(result.transactionId)!),
         candidates: result.candidatePaymentIds.map((id) => mapPayment(paymentById.get(id)!)),
       });
+      for (const id of result.candidatePaymentIds) matchedPaymentIds.add(id);
       unmatchedBankIds.delete(result.transactionId);
     }
   }
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
   }
 
   const payment = await prisma.payment.findFirst({
-    where: { id: body.paymentId, invoice: { client: { ownerId: session.user.id } } },
+    where: { id: body.paymentId, reconciledAt: null, invoice: { client: { ownerId: session.user.id } } },
   });
   if (!payment) return NextResponse.json({ error: "payment not found" }, { status: 404 });
 
