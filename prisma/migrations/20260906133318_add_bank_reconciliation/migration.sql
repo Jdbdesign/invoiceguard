@@ -1,6 +1,3 @@
--- DropForeignKey
-ALTER TABLE "InvoiceItem" DROP CONSTRAINT "InvoiceItem_invoiceId_fkey";
-
 -- CreateTable
 CREATE TABLE "Payment" (
     "id" TEXT NOT NULL,
@@ -59,9 +56,6 @@ CREATE INDEX "BankTransaction_ownerId_date_idx" ON "BankTransaction"("ownerId", 
 
 -- CreateIndex
 CREATE INDEX "BankTransaction_uploadId_position_idx" ON "BankTransaction"("uploadId", "position");
-
--- AddForeignKey
-ALTER TABLE "InvoiceItem" ADD CONSTRAINT "InvoiceItem_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
