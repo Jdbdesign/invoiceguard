@@ -1,0 +1,27 @@
+name: Check production migrations
+
+# Runs on every PR into master rather than on push: deploys go out via
+# Vercel's git integration the moment something lands on master, so a
+# push-triggered check would only ever fire after the deploy already
+# started. Gating the PR (and making this a required status check in
+# branch protection) is what actually blocks a bad merge/deploy.
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  check-prod-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run db:check-prod-migrations
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
