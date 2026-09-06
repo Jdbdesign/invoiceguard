@@ -35,4 +35,13 @@ jobs:
 
       - run: npm ci
 
+      # TEMPORARY — remove once the "User not found" investigation is
+      # resolved. Echoes only lengths, never values, so nothing here can
+      # leak the actual secrets into logs.
+      - name: Debug secret lengths (temporary)
+        run: |
+          echo "VERCEL_TOKEN length: ${#VERCEL_TOKEN}"
+          echo "VERCEL_ORG_ID length: ${#VERCEL_ORG_ID}"
+          echo "VERCEL_PROJECT_ID length: ${#VERCEL_PROJECT_ID}"
+
       - run: npm run check:required-env
