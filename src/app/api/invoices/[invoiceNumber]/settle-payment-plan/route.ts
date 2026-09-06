@@ -74,6 +74,13 @@ export async function POST(
       },
       include: { invoice: true },
     }),
+    prisma.payment.create({
+      data: {
+        invoiceId: invoice.id,
+        amount: remaining,
+        paidDate,
+      },
+    }),
   ]);
 
   let finalInvoice = updatedInvoice;
