@@ -35,10 +35,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ upload: mapBankStatementUpload(failed) });
   };
 
+  let parsedFileUrl: URL | null;
+  try {
+    parsedFileUrl = new URL(fileUrl);
+  } catch {
+    parsedFileUrl = null;
+  }
+  if (
+    !parsedFileUrl ||
+    parsedFileUrl.protocol !== "https:" ||
+    !parsedFileUrl.hostname.endsWith(".public.blob.vercel-storage.com")
+  ) {
+    console.error("Rejected fileUrl — unexpected host", parsedFileUrl?.hostname ?? "(unparseable)");
+    return fail("This file doesn't appear to be a valid upload — please try again.");
+  }
+
   let fileResponse: Response;
   try {
     fileResponse = await fetch(fileUrl);
-  } catch {
+  } catch (error) {
+    console.error("Bank statement file download failed", error);
     return fail("Couldn't download the uploaded file — please try again.");
   }
   if (!fileResponse.ok) {
@@ -75,7 +91,8 @@ export async function POST(request: Request) {
     const data = await pdfParse(buffer);
     extractedText = data.text;
     pageCount = data.numpages;
-  } catch {
+  } catch (error) {
+    console.error("Bank statement PDF parsing failed", error);
     return fail("Couldn't read this PDF — it may be corrupted.");
   }
 
@@ -89,6 +106,7 @@ export async function POST(request: Request) {
   try {
     rows = await extractTransactionsFromStatementText(extractedText);
   } catch (error) {
+    console.error("Bank statement transaction extraction failed", error);
     if (error instanceof StatementExtractionError) {
       return fail(error.message);
     }

@@ -69,10 +69,12 @@ ${statementText}`;
       // more than a handful of rows hit stop_reason "max_tokens" and got
       // truncated mid-array with no closing "]" — extractRows then threw
       // "no transaction data found in the response" even though extraction
-      // was otherwise working correctly. Verified against a real multi-page
-      // statement: 4096 truncated at ~2 rows; 16000 completed cleanly
-      // (stop_reason "end_turn") for a 140-row statement. 20000 keeps
-      // headroom for larger statements while staying under the SDK's
+      // was otherwise working correctly. 20000 is an empirically-chosen
+      // value from manual testing against real statements, not a documented
+      // Anthropic API limit: 4096 truncated at ~2 rows, while 16000 completed
+      // cleanly (stop_reason "end_turn") for one real multi-page, 140-row
+      // statement we tested against. This may need retuning if a larger
+      // real-world statement truncates again — it stays under the SDK's
       // ~24000 threshold above which it requires streaming for long-running
       // requests (a bigger change out of this task's scope).
       max_tokens: 20000,
