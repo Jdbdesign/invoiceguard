@@ -7,6 +7,15 @@
 // Fails closed: DEV_DATABASE_HOST is an unreachable placeholder until a real
 // dedicated dev Neon branch exists, so every guarded script is blocked by
 // default until that value is filled in.
+//
+// KNOWN GAP: Vercel Preview deployments currently fail outright (npm
+// install's `prisma generate` postinstall errors on an unresolved
+// DATABASE_URL) because DATABASE_URL is only configured for Production in
+// Vercel's env vars, not Preview. Do NOT fix this by pointing Preview at
+// PRODUCTION_DATABASE_HOST — that would let preview builds read/write real
+// user data. The real fix is to provision the same dedicated dev/preview
+// Neon branch referenced above and set it as DATABASE_URL for Preview scope
+// in Vercel; that branch doesn't exist yet, so this is unresolved.
 
 export const PRODUCTION_DATABASE_HOST = "ep-long-glitter-ayp4oqdg-pooler.c-5.us-east-2.aws.neon.tech";
 

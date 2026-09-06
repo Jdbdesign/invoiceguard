@@ -49,3 +49,15 @@ After changing `DATABASE_URL`, run `npm run db:migrate` (or apply migrations how
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+### Required pre-deploy step: check for pending migrations
+
+Before every deploy, run:
+
+```bash
+DATABASE_URL=<production connection string> npm run db:check-prod-migrations
+```
+
+This is read-only — it runs `prisma migrate status` against production and exits non-zero (failing loudly) if any migrations are unapplied, the migration history has diverged, the `_prisma_migrations` table is missing, or the database can't be reached. It refuses to run at all unless `DATABASE_URL` resolves to the known production host, so it can't be accidentally satisfied by a clean dev database.
+
+Do not proceed with the deploy if this check fails — resolve the pending migration first (see the `db:apply-prod-*` / `db:resolve-prod-*` scripts in `prisma/` for the pattern used to apply one-off production migrations). This step exists because a schema change once reached production without its migration having been applied, and nothing in the deploy process caught it.
