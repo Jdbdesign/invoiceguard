@@ -40,7 +40,23 @@ for (const name of ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"]) {
   }
 }
 
-console.log("Pulling Vercel Production environment variables...\n");
+// Print which account/team the token resolves to before attempting to pull
+// a specific project's env vars. `vercel pull`'s own error for a bad
+// VERCEL_ORG_ID/VERCEL_PROJECT_ID pairing ("Could not retrieve Project
+// Settings. To link your Project, remove the .vercel directory and deploy
+// again.") gives no hint about which of the three env vars is actually
+// wrong — this makes that failure mode self-diagnosing in CI logs instead
+// of requiring a separate local repro every time.
+console.log("Checking Vercel CLI identity...\n");
+const whoami = spawnSync("npx", ["--yes", "vercel@latest", "whoami"], {
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
+if ((whoami.status ?? 1) !== 0) {
+  fail("`vercel whoami` failed — VERCEL_TOKEN is likely invalid, expired, or revoked.");
+}
+
+console.log("\nPulling Vercel Production environment variables...\n");
 
 const result = spawnSync(
   "npx",
