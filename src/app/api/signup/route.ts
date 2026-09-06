@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { BUSINESS_TYPES } from "@/lib/businessTypes";
+import { passwordValidationError } from "@/lib/passwordValidation";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 8;
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -16,11 +16,9 @@ export async function POST(request: Request) {
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "enter a valid email address" }, { status: 400 });
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return NextResponse.json(
-      { error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` },
-      { status: 400 }
-    );
+  const passwordError = passwordValidationError(password);
+  if (passwordError) {
+    return NextResponse.json({ error: passwordError }, { status: 400 });
   }
   if (!businessName) {
     return NextResponse.json({ error: "enter a business name" }, { status: 400 });

@@ -11,6 +11,7 @@ import {
   PASSWORD_RECONFIRM_MAX_MINUTES,
 } from "@/lib/passwordReconfirmBounds";
 import { LogoUploadField } from "@/components/business/LogoUploadField";
+import { ChangePasswordForm } from "@/components/settings/ChangePasswordForm";
 import { BUSINESS_TYPES } from "@/lib/businessTypes";
 import { COUNTRIES } from "@/lib/countries";
 import type { ReminderStage } from "@/lib/types";
@@ -281,49 +282,63 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader
-          title="Security"
-          subtitle="How often you need to re-confirm your password for sensitive actions"
-          action={
-            <button
-              onClick={handleSaveReconfirm}
-              disabled={!isReconfirmDirty || !isReconfirmValid || savingReconfirm}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-            >
-              {savingReconfirm ? "Saving…" : "Save changes"}
-            </button>
-          }
-        />
-        <div className="px-5 py-5">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-slate-600">
-              Require password confirmation every
-            </span>
-            <div className="flex items-center gap-2">
-              {/* Width belongs on this wrapper, not the input — .input's unlayered width:100% in globals.css always beats a Tailwind width utility placed directly on the element. */}
-              <div className="w-24 flex-shrink-0">
-                <input
-                  type="number"
-                  min={PASSWORD_RECONFIRM_MIN_MINUTES}
-                  max={PASSWORD_RECONFIRM_MAX_MINUTES}
-                  value={reconfirmDraft}
-                  onChange={(e) => setReconfirmDraft(Number(e.target.value))}
-                  aria-invalid={!isReconfirmValid}
-                  className="input"
-                />
-              </div>
-              <span className="text-xs text-slate-500">
-                minutes for sensitive actions ({PASSWORD_RECONFIRM_MIN_MINUTES}–
-                {PASSWORD_RECONFIRM_MAX_MINUTES})
-              </span>
+        <CardHeader title="Security" subtitle="Your password and sensitive-action settings" />
+        <div className="divide-y divide-slate-100">
+          <div className="px-5 py-5">
+            <h4 className="text-sm font-medium text-slate-900">Change password</h4>
+            <p className="mt-0.5 text-xs text-slate-500">Requires your current password.</p>
+            <div className="mt-4 max-w-sm">
+              <ChangePasswordForm />
             </div>
-            {!isReconfirmValid && (
-              <p className="mt-1.5 text-xs text-red-600">
-                Enter a whole number between {PASSWORD_RECONFIRM_MIN_MINUTES} and{" "}
-                {PASSWORD_RECONFIRM_MAX_MINUTES}.
-              </p>
-            )}
-          </label>
+          </div>
+          <div className="px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-medium text-slate-900">
+                  Sensitive action confirmation
+                </h4>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  How often you need to re-confirm your password for sensitive actions
+                </p>
+              </div>
+              <button
+                onClick={handleSaveReconfirm}
+                disabled={!isReconfirmDirty || !isReconfirmValid || savingReconfirm}
+                className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                {savingReconfirm ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+            <label className="mt-4 block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                Require password confirmation every
+              </span>
+              <div className="flex items-center gap-2">
+                {/* Width belongs on this wrapper, not the input — .input's unlayered width:100% in globals.css always beats a Tailwind width utility placed directly on the element. */}
+                <div className="w-24 flex-shrink-0">
+                  <input
+                    type="number"
+                    min={PASSWORD_RECONFIRM_MIN_MINUTES}
+                    max={PASSWORD_RECONFIRM_MAX_MINUTES}
+                    value={reconfirmDraft}
+                    onChange={(e) => setReconfirmDraft(Number(e.target.value))}
+                    aria-invalid={!isReconfirmValid}
+                    className="input"
+                  />
+                </div>
+                <span className="text-xs text-slate-500">
+                  minutes for sensitive actions ({PASSWORD_RECONFIRM_MIN_MINUTES}–
+                  {PASSWORD_RECONFIRM_MAX_MINUTES})
+                </span>
+              </div>
+              {!isReconfirmValid && (
+                <p className="mt-1.5 text-xs text-red-600">
+                  Enter a whole number between {PASSWORD_RECONFIRM_MIN_MINUTES} and{" "}
+                  {PASSWORD_RECONFIRM_MAX_MINUTES}.
+                </p>
+              )}
+            </label>
+          </div>
         </div>
       </Card>
 
