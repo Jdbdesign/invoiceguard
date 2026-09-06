@@ -19,6 +19,7 @@
     "db:resolve-prod-active-receipt-template-migration": "tsx prisma/resolve-prod-active-receipt-template-migration.ts",
     "db:apply-prod-add-business-profile-migration": "tsx prisma/apply-prod-add-business-profile-migration.ts",
     "db:inspect-business-profile-migration-state": "tsx prisma/inspect-business-profile-migration-state.ts",
+    "db:resolve-prod-add-business-profile-migration": "tsx prisma/resolve-prod-add-business-profile-migration.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
