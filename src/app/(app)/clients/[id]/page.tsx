@@ -506,8 +506,12 @@ export default function ClientDetailPage() {
             await sendReceipt(confirmingReceiptFor.id);
             showToast(`Receipt sent for ${confirmingReceiptFor.id}`);
             refetchActivity();
-          } catch {
-            showToast(`Failed to send receipt for ${confirmingReceiptFor.id}`);
+          } catch (error) {
+            showToast(
+              error instanceof Error
+                ? error.message
+                : `Failed to send receipt for ${confirmingReceiptFor.id}`
+            );
           } finally {
             setConfirmingReceiptFor(null);
           }
