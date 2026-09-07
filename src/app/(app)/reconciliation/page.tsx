@@ -1,7 +1,22 @@
+import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
+import { mapBankStatementUpload } from "@/lib/mappers";
 import { UploadStatementButton } from "./UploadStatementButton";
+import { UploadsList } from "./UploadsList";
 import { MatchBuckets } from "./MatchBuckets";
 
-export default function ReconciliationPage() {
+export default async function ReconciliationPage() {
+  const session = await auth();
+  const uploads = session?.user
+    ? (
+        await prisma.bankStatementUpload.findMany({
+          where: { ownerId: session.user.id },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        })
+      ).map(mapBankStatementUpload)
+    : [];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -16,6 +31,7 @@ export default function ReconciliationPage() {
         </div>
         <UploadStatementButton />
       </div>
+      <UploadsList uploads={uploads} />
       <MatchBuckets />
     </div>
   );
