@@ -98,13 +98,15 @@ describe("mapBankTransaction", () => {
 describe("mapLinkableInvoice", () => {
   it("maps an invoice row to its link-picker shape, using balance as the linkable amount", () => {
     const result = mapLinkableInvoice({
+      id: "clv042invoice",
       invoiceNumber: "INV-042",
       balance: 45000,
       dueDate: new Date("2026-02-15T00:00:00.000Z"),
       client: { name: "IDANIMO TECHNOLOGY LIMITED", currency: "NGN" },
     });
     expect(result).toEqual({
-      id: "INV-042",
+      id: "clv042invoice",
+      invoiceNumber: "INV-042",
       clientName: "IDANIMO TECHNOLOGY LIMITED",
       amount: 45000,
       currency: "NGN",

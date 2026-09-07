@@ -41,7 +41,17 @@ async function fetchWithPasswordRetry(url: string, init: RequestInit): Promise<R
   return fetch(url, init);
 }
 
-export function MatchBuckets({ refreshToken = 0 }: { refreshToken?: number }) {
+export function MatchBuckets({
+  refreshToken = 0,
+  onRefreshSettled,
+}: {
+  refreshToken?: number;
+  /** Called once the refreshToken-triggered fetch below settles (success or
+   * failure), so the "Refresh matches" button in the parent — which owns
+   * refreshToken but not this fetch — knows when to clear its loading state.
+   * Not called for the initial mount fetch (refreshToken === 0). */
+  onRefreshSettled?: () => void;
+}) {
   const { showToast } = useToast();
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -66,6 +76,11 @@ export function MatchBuckets({ refreshToken = 0 }: { refreshToken?: number }) {
   // constraint — `load` itself is still reused by the action handlers below.
   useEffect(() => {
     let cancelled = false;
+    // refreshToken starts at 0 on mount and is only ever incremented by the
+    // "Refresh matches" button, so > 0 here means this run was user-triggered
+    // — that's what gates the completion toast/callback below (a plain page
+    // load shouldn't announce itself as a "refresh").
+    const isManualRefresh = refreshToken > 0;
     fetch("/api/reconciliation/matches")
       .then(async (response) => {
         if (cancelled) return;
@@ -76,18 +91,24 @@ export function MatchBuckets({ refreshToken = 0 }: { refreshToken?: number }) {
           return;
         }
         setData(await response.json());
+        if (isManualRefresh) showToast("Matches refreshed");
       })
       .catch(() => {
         if (cancelled) return;
         const message = "Couldn't load reconciliation data.";
         setLoadError(message);
         showToast(message);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        if (isManualRefresh) onRefreshSettled?.();
       });
     return () => {
       cancelled = true;
     };
     // refreshToken is the intentional re-run trigger (bumped by the "Refresh
-    // matches" button in ReconciliationWorkspace); showToast is stable via context
+    // matches" button in ReconciliationWorkspace); showToast/onRefreshSettled
+    // are stable across renders (context value / parent-owned setState setter)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken]);
 
