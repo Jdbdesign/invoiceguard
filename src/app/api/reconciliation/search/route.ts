@@ -54,8 +54,8 @@ export async function GET(request: Request) {
       ignoredAt: null,
       payment: null,
       ...(isAmountQuery
-        ? { amount: { gte: numericQuery - AMOUNT_EPSILON, lte: numericQuery + AMOUNT_EPSILON } }
-        : { description: { contains: q, mode: "insensitive" } }),
+        ? { amount: { gte: numericQuery - AMOUNT_EPSILON, lte: numericQuery + AMOUNT_EPSILON, gt: 0 } }
+        : { amount: { gt: 0 }, description: { contains: q, mode: "insensitive" } }),
     },
     take: RESULT_LIMIT,
   });
