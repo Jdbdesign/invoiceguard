@@ -38,7 +38,7 @@ Set these wherever the app runs (local `.env`, Vercel Project Settings → Envir
 | `DATABASE_URL` | Postgres connection string (e.g. from Neon). Used by Prisma for both migrations and the runtime client. |
 | `ANTHROPIC_API_KEY` | Claude API key, used to draft reminder emails. |
 | `AUTH_SECRET` | Signing secret for Auth.js session JWTs. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Keep it private. |
-| `APP_BASE_URL` | Absolute base URL used to build password-reset links (e.g. `https://invoiceguard-eta.vercel.app`). Falls back to `http://localhost:3000` outside production; must be set explicitly in production or reset emails will fail to send (see `src/app/api/forgot-password/route.ts`). |
+| `APP_BASE_URL` | Absolute base URL used to build password-reset and client share links (e.g. `https://app.remitrak.com`). Falls back to `http://localhost:3000` outside production; must be set explicitly in production or reset/share links will fail to send (see `src/app/api/forgot-password/route.ts`). **Required in production** — see below. |
 | `RESEND_API_KEY` | API key for [Resend](https://resend.com), used to send password-reset, invoice-reminder, and payment-receipt emails. Until a custom sending domain is verified in Resend, the sender (`onboarding@resend.dev`) can only deliver to the Resend account's own email address. |
 | `REMINDER_FROM_ADDRESS` | Sender address for invoice reminder emails (e.g. `Remitrak <billing@yourdomain.com>`). **Required in production** — see below. |
 | `RECEIPT_FROM_ADDRESS` | Sender address for payment-receipt emails (e.g. `Remitrak <receipts@send.remitrak.com>`). **Required in production** — see below. |

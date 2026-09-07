@@ -25,6 +25,7 @@ const REQUIRED_VARS = [
   "REMINDER_FROM_ADDRESS",
   "RECEIPT_FROM_ADDRESS",
   "RESET_PASSWORD_FROM_ADDRESS",
+  "APP_BASE_URL",
 ];
 
 const PULLED_ENV_PATH = ".vercel/.env.production.local";
