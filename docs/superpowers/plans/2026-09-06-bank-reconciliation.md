@@ -2307,6 +2307,224 @@ git commit -m "Add reconciliation upload list and three-bucket matching screen"
 
 ---
 
+### Task 13: Manual link search picker
+
+**Added post-Task-12**, after a formal review caught that the design spec's "Three-bucket UX" section requires a "Link manually" search picker on both Unmatched buckets, but this was never included in any task's Files/Interfaces during original planning — Task 12's own Self-Review incorrectly claimed it was covered ("Three buckets + manual link + ignore → Task 10, 12. ✓"), when in fact neither task built it. Without this, a payment/transaction pair outside the ±3-day/exact-amount window (the spec's own worked example: a bank fee shaved a few dollars off a deposit) can never be reconciled through the UI at all. User decided to build it properly rather than document it as a deferred v1 exclusion, since it's a spec requirement, not one of the deliberate v1 simplifications (split matching, fuzzy tolerance) called out in Global Constraints.
+
+**Files:**
+- Create: `src/app/api/reconciliation/search/route.ts`
+- Create: `src/app/(app)/reconciliation/LinkManuallyModal.tsx`
+- Modify: `src/app/(app)/reconciliation/MatchBuckets.tsx`
+
+**Interfaces:**
+- Consumes: `POST /api/reconciliation/matches` (Task 10) — already accepts an arbitrary `{ paymentId, bankTransactionId }` pair with no amount/date proximity constraint (confirmed by reading its code: it only checks the payment is unreconciled and the transaction is unmatched), so it needs no changes to serve as the manual-link write-back, exactly as the spec specifies ("manually confirming a link uses the same write-back as an automatic match"). `mapPayment`/`mapBankTransaction` (Task 3).
+- Produces: `GET /api/reconciliation/search?type=payment|transaction&q=<term>` → `{ results: Payment[] }` or `{ results: BankTransaction[] }` — used by the new modal.
+
+No unit tests (requires live DB — see Global Constraints); verify manually per Step 4.
+
+- [ ] **Step 1: Write the search route**
+
+Numeric-looking queries search by amount (±0.01 epsilon, consistent with the matching algorithm's own epsilon); anything else searches by name/number/description. Scoped to the caller's own data, matching every other route in this feature.
+
+```ts
+// src/app/api/reconciliation/search/route.ts
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
+import { mapBankTransaction, mapPayment } from "@/lib/mappers";
+
+const RESULT_LIMIT = 20;
+const AMOUNT_EPSILON = 0.01;
+
+export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ownerId = session.user.id;
+
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get("type");
+  const q = (searchParams.get("q") ?? "").trim();
+
+  if (type !== "payment" && type !== "transaction") {
+    return NextResponse.json({ error: "type must be 'payment' or 'transaction'" }, { status: 400 });
+  }
+  if (!q) return NextResponse.json({ results: [] });
+
+  const numericQuery = Number(q);
+  const isAmountQuery = Number.isFinite(numericQuery);
+
+  if (type === "payment") {
+    const payments = await prisma.payment.findMany({
+      where: {
+        reconciledAt: null,
+        invoice: {
+          client: { ownerId },
+          ...(isAmountQuery
+            ? {}
+            : {
+                OR: [
+                  { invoiceNumber: { contains: q, mode: "insensitive" } },
+                  { client: { name: { contains: q, mode: "insensitive" } } },
+                ],
+              }),
+        },
+        ...(isAmountQuery
+          ? { amount: { gte: numericQuery - AMOUNT_EPSILON, lte: numericQuery + AMOUNT_EPSILON } }
+          : {}),
+      },
+      include: { invoice: { select: { invoiceNumber: true } } },
+      take: RESULT_LIMIT,
+    });
+    return NextResponse.json({ results: payments.map(mapPayment) });
+  }
+
+  const transactions = await prisma.bankTransaction.findMany({
+    where: {
+      ownerId,
+      ignoredAt: null,
+      payment: null,
+      ...(isAmountQuery
+        ? { amount: { gte: numericQuery - AMOUNT_EPSILON, lte: numericQuery + AMOUNT_EPSILON } }
+        : { description: { contains: q, mode: "insensitive" } }),
+    },
+    take: RESULT_LIMIT,
+  });
+  return NextResponse.json({ results: transactions.map(mapBankTransaction) });
+}
+```
+
+- [ ] **Step 2: Write the picker modal**
+
+Reuses `@/components/ui/Modal`. Debounce the search-as-you-type by a simple approach (e.g. a `setTimeout`/`clearTimeout` pair) consistent with there being no existing debounce utility in this codebase to reuse. The modal's `onConfirm` prop must be the SAME password-reconfirm-retry-aware function `MatchBuckets.tsx` already uses for its Confirm buttons — refactor `confirmMatch` in that file so it returns `Promise<boolean>` (true on success) instead of only updating local state, so this modal can await it and react (stay open + show its own inline error on failure, close on success) without duplicating the `fetchWithPasswordRetry` logic. The existing Confirm-button call sites keep working using the returned boolean instead of (or alongside) their existing toast/inline-error handling — use your judgment on the cleanest way to thread this through without changing `confirmMatch`'s user-visible behavior for its existing callers.
+
+```tsx
+// src/app/(app)/reconciliation/LinkManuallyModal.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { Modal } from "@/components/ui/Modal";
+import type { Payment, BankTransaction } from "@/lib/types";
+
+export type LinkTarget =
+  | { searchFor: "transaction"; payment: Payment }
+  | { searchFor: "payment"; transaction: BankTransaction };
+
+export function LinkManuallyModal({
+  target,
+  onClose,
+  onConfirm,
+}: {
+  target: LinkTarget | null;
+  onClose: () => void;
+  onConfirm: (paymentId: string, bankTransactionId: string) => Promise<boolean>;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<(Payment | BankTransaction)[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setQuery("");
+    setResults([]);
+    setError(null);
+  }, [target]);
+
+  useEffect(() => {
+    if (!target || !query.trim()) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    const timeout = setTimeout(async () => {
+      const response = await fetch(
+        `/api/reconciliation/search?type=${target.searchFor}&q=${encodeURIComponent(query)}`
+      );
+      const data = await response.json().catch(() => ({ results: [] }));
+      setResults(data.results ?? []);
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [query, target]);
+
+  async function pick(result: Payment | BankTransaction) {
+    if (!target) return;
+    setLinkingId(result.id);
+    setError(null);
+    const [paymentId, bankTransactionId] =
+      target.searchFor === "transaction"
+        ? [target.payment.id, result.id]
+        : [result.id, target.transaction.id];
+    const success = await onConfirm(paymentId, bankTransactionId);
+    setLinkingId(null);
+    if (success) onClose();
+    else setError("Couldn't link this pair — try again.");
+  }
+
+  return (
+    <Modal open={target !== null} onClose={onClose} title="Link manually">
+      <div className="space-y-4">
+        <input
+          type="text"
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by amount, client name, or invoice number"
+          className="input"
+        />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {loading && <p className="text-sm text-slate-400">Searching…</p>}
+        {!loading && query.trim() && results.length === 0 && (
+          <p className="text-sm text-slate-400">No matches.</p>
+        )}
+        <ul className="divide-y divide-slate-100">
+          {results.map((result) => (
+            <li key={result.id} className="flex items-center justify-between py-2 text-sm">
+              <span>
+                {"invoiceId" in result
+                  ? `Invoice ${result.invoiceId} — ${result.amount} paid ${result.paidDate}`
+                  : `${result.date} — ${result.description} — ${result.amount}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => pick(result)}
+                disabled={linkingId === result.id}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                {linkingId === result.id ? "Linking…" : "Link"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Modal>
+  );
+}
+```
+
+- [ ] **Step 3: Wire the modal into MatchBuckets**
+
+Add a `linkTarget: LinkTarget | null` state to `MatchBuckets.tsx`. Add a "Link manually" text-button to each row in the Unmatched — Ours section (setting `{ searchFor: "transaction", payment }`) and each row in the Unmatched — Bank section (setting `{ searchFor: "payment", transaction }`), alongside that section's existing Ignore button where applicable. Render `<LinkManuallyModal target={linkTarget} onClose={() => setLinkTarget(null)} onConfirm={confirmMatch} />` once at the bottom of the component (after refactoring `confirmMatch` per Step 2's note to return `Promise<boolean>`). On a successful link, the modal closes itself and the existing `load()` call inside `confirmMatch` refreshes all buckets, so the linked pair naturally disappears from both Unmatched lists and appears in Matched — no additional state management needed in `MatchBuckets` beyond opening/closing the modal.
+
+- [ ] **Step 4: Manual verification**
+
+Same environmental constraints as Task 12 (no real Blob upload possible, no browser automation tool) — verify via Prisma fixtures + direct HTTP calls replicating the modal's exact requests, consistent with how Task 12 verified `MatchBuckets`:
+1. Seed one unmatched `Payment` (amount `X`, paid 10+ days ago) and one unmatched `BankTransaction` with a different amount (e.g. `X` minus a small fee) and a date more than 3 days away — confirm neither appears in `suggested` or `needsReview` on `GET /api/reconciliation/matches` (they're genuinely outside the auto-match window).
+2. `GET /api/reconciliation/search?type=transaction&q=<the transaction's amount>` from the payment's "other side" — confirm the transaction is returned.
+3. `GET /api/reconciliation/search?type=payment&q=<client name or invoice number>` — confirm text search works.
+4. `POST /api/reconciliation/matches` with that pair (the same call the modal's `onConfirm` makes) — confirm it succeeds and the pair now appears in `matched` on the next `GET`, exactly as an automatic match would.
+5. Confirm the password-reconfirmation retry still works for this path too (same 403+code check as Task 12's other actions, since it reuses `confirmMatch`).
+6. `npx tsc --noEmit`, `npm run lint`, `npm test` — clean.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/app/api/reconciliation/search src/app/\(app\)/reconciliation/LinkManuallyModal.tsx "src/app/(app)/reconciliation/MatchBuckets.tsx"
+git commit -m "Add manual link search picker for out-of-window reconciliation matches"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
@@ -2314,7 +2532,7 @@ git commit -m "Add reconciliation upload list and three-bucket matching screen"
 - PDF parsing pipeline (magic-byte validation, scanned-PDF guard, pdf-parse → Claude structuring, API-failure handling) → Task 5, 6, 7. ✓
 - Review/correction UI → Task 8. ✓
 - Matching algorithm (exact amount, ±3 days, ambiguity → Needs Review) → Task 9, 10. ✓
-- Three buckets + manual link + ignore → Task 10, 12. ✓
+- Three buckets + ignore → Task 10, 12. ✓ Manual link was incorrectly claimed covered here in the original self-review — it was not; added as Task 13 after a post-Task-12 review caught the gap.
 - Nav placement → Task 11. ✓
 - Server-side content-type re-validation (the reviewer-flagged gap) → Task 7, Step 3 (magic-byte + size check against actual fetched bytes, independent of client-declared content type). ✓
 
