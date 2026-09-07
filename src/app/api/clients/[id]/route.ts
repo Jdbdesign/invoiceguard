@@ -84,6 +84,7 @@ export async function DELETE(
     ...(invoiceIds.length > 0
       ? [
           prisma.invoiceItem.deleteMany({ where: { invoiceId: { in: invoiceIds } } }),
+          prisma.payment.deleteMany({ where: { invoiceId: { in: invoiceIds } } }),
           prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } }),
         ]
       : []),
