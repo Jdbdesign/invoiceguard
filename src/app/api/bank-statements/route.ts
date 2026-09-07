@@ -60,9 +60,21 @@ export async function POST(request: Request) {
   if (!fileResponse.ok) {
     return fail("Couldn't download the uploaded file — please try again.");
   }
+
+  // Check the declared size before buffering the body into memory — fileUrl
+  // only has to satisfy the hostname allowlist above, so without this an
+  // authenticated user could point it at an arbitrarily large blob and force
+  // this function to buffer all of it before the size check below ever runs.
+  const contentLength = Number(fileResponse.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_SIZE_BYTES) {
+    return fail("This file is larger than the 15MB limit.");
+  }
+
   const arrayBuffer = await fileResponse.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
+  // Backstop for a missing or lying Content-Length header — defense in
+  // depth, not a replacement for the pre-read check above.
   if (buffer.length > MAX_SIZE_BYTES) {
     return fail("This file is larger than the 15MB limit.");
   }
