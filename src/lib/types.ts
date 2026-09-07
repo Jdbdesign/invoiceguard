@@ -147,6 +147,7 @@ export interface BankTransaction {
  * BANK_TRANSACTION_CURRENCY. Linking one creates the Payment on confirm. */
 export interface LinkableInvoice {
   id: string;
+  invoiceNumber: string;
   clientName: string;
   amount: number;
   currency: string;
