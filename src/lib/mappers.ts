@@ -120,6 +120,7 @@ export function mapInvoice(inv: InvoiceRow): Invoice {
 }
 
 type LinkableInvoiceRow = {
+  id: string;
   invoiceNumber: string;
   balance: number;
   dueDate: Date;
@@ -128,7 +129,8 @@ type LinkableInvoiceRow = {
 
 export function mapLinkableInvoice(inv: LinkableInvoiceRow): LinkableInvoice {
   return {
-    id: inv.invoiceNumber,
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
     clientName: inv.client.name,
     amount: inv.balance,
     currency: inv.client.currency,

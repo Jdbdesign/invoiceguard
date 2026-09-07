@@ -116,7 +116,7 @@ export function LinkManuallyModal({
                 <span>
                   {result.kind === "invoice" ? (
                     <>
-                      Invoice {result.id} — {result.clientName} —{" "}
+                      Invoice {result.invoiceNumber} — {result.clientName} —{" "}
                       {result.amount} {result.currency} outstanding{" "}
                       <span className="text-xs text-slate-400">(not yet recorded as paid)</span>
                     </>
