@@ -6,6 +6,7 @@ import { PageLoading } from "@/components/ui/Spinner";
 import { useToast } from "@/context/ToastContext";
 import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
 import type { Payment, BankTransaction } from "@/lib/types";
+import { LinkManuallyModal, type LinkTarget } from "./LinkManuallyModal";
 
 interface MatchesResponse {
   matched: { payment: Payment; transaction: BankTransaction }[];
@@ -44,6 +45,7 @@ export function MatchBuckets() {
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [linkTarget, setLinkTarget] = useState<LinkTarget | null>(null);
 
   async function load() {
     const response = await fetch("/api/reconciliation/matches");
@@ -85,7 +87,11 @@ export function MatchBuckets() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function confirmMatch(paymentId: string, bankTransactionId: string) {
+  // Returns true on success so callers (the modal picker included) can react
+  // to the outcome directly, without duplicating this fetch/retry logic.
+  // Toast + inline error + load() on failure/success are unchanged for the
+  // existing Confirm-button call sites — only the return value is new.
+  async function confirmMatch(paymentId: string, bankTransactionId: string): Promise<boolean> {
     setActionError(null);
     try {
       const response = await fetchWithPasswordRetry("/api/reconciliation/matches", {
@@ -97,13 +103,15 @@ export function MatchBuckets() {
         const message = "Couldn't confirm this match — try again.";
         setActionError(message);
         showToast(message);
-        return;
+        return false;
       }
       load();
+      return true;
     } catch {
       const message = "Password confirmation was cancelled — match not confirmed.";
       setActionError(message);
       showToast(message);
+      return false;
     }
   }
 
@@ -248,8 +256,19 @@ export function MatchBuckets() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {data.unmatchedOurs.map((payment) => (
-              <li key={payment.id} className="px-5 py-4 text-sm text-slate-700">
-                Invoice {payment.invoiceId} — {payment.amount} paid {payment.paidDate}
+              <li
+                key={payment.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"
+              >
+                <span className="text-slate-700">
+                  Invoice {payment.invoiceId} — {payment.amount} paid {payment.paidDate}
+                </span>
+                <button
+                  onClick={() => setLinkTarget({ searchFor: "transaction", payment })}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Link manually
+                </button>
               </li>
             ))}
           </ul>
@@ -273,17 +292,31 @@ export function MatchBuckets() {
                 <span className="text-slate-700">
                   {transaction.date} — {transaction.description} — {transaction.amount}
                 </span>
-                <button
-                  onClick={() => ignoreTransaction(transaction.id)}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-700"
-                >
-                  Ignore
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setLinkTarget({ searchFor: "payment", transaction })}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    Link manually
+                  </button>
+                  <button
+                    onClick={() => ignoreTransaction(transaction.id)}
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                  >
+                    Ignore
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </Card>
+
+      <LinkManuallyModal
+        target={linkTarget}
+        onClose={() => setLinkTarget(null)}
+        onConfirm={confirmMatch}
+      />
     </div>
   );
 }
