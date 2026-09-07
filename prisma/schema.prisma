@@ -12,10 +12,12 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
-  clients             Client[]
-  settings            Settings?
-  passwordResetTokens PasswordResetToken[]
-  shareLinks          ShareLink[]
+  clients              Client[]
+  settings             Settings?
+  passwordResetTokens  PasswordResetToken[]
+  shareLinks           ShareLink[]
+  bankStatementUploads BankStatementUpload[]
+  bankTransactions     BankTransaction[]
 }
 
 model PasswordResetToken {
@@ -62,6 +64,7 @@ model Invoice {
   activityLogs ActivityLog[]
   paymentPlan  PaymentPlan?
   items        InvoiceItem[]
+  payments     Payment[]
 }
 
 model InvoiceItem {
@@ -112,6 +115,7 @@ model Installment {
   label             String?
 
   paymentPlan PaymentPlan @relation(fields: [paymentPlanId], references: [id])
+  payments    Payment[]
 }
 
 model ShareLink {
@@ -148,4 +152,57 @@ model Settings {
   onboardingCompletedAt    DateTime?
 
   owner User @relation(fields: [ownerId], references: [id])
+}
+
+model Payment {
+  id                String    @id @default(cuid())
+  invoiceId         String
+  installmentId     String?
+  amount            Float
+  paidDate          DateTime
+  createdAt         DateTime  @default(now())
+  reconciledAt      DateTime?
+  bankTransactionId String?   @unique
+
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id])
+  installment     Installment?     @relation(fields: [installmentId], references: [id])
+  bankTransaction BankTransaction? @relation(fields: [bankTransactionId], references: [id])
+
+  @@index([invoiceId])
+}
+
+model BankStatementUpload {
+  id             String    @id @default(cuid())
+  ownerId        String
+  fileUrl        String
+  fileName       String
+  status         String    @default("uploaded")
+  errorMessage   String?
+  parsedRowsJson Json?
+  createdAt      DateTime  @default(now())
+  reviewedAt     DateTime?
+
+  owner        User              @relation(fields: [ownerId], references: [id])
+  transactions BankTransaction[]
+
+  @@index([ownerId, createdAt])
+}
+
+model BankTransaction {
+  id          String    @id @default(cuid())
+  uploadId    String
+  ownerId     String
+  date        DateTime
+  description String
+  amount      Float
+  position    Int
+  ignoredAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  upload  BankStatementUpload @relation(fields: [uploadId], references: [id])
+  owner   User                @relation(fields: [ownerId], references: [id])
+  payment Payment?
+
+  @@index([ownerId, date])
+  @@index([uploadId, position])
 }

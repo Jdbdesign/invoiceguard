@@ -133,6 +133,7 @@ export async function DELETE(
       : []),
     prisma.activityLog.deleteMany({ where: { invoiceId: invoice.id } }),
     prisma.invoiceItem.deleteMany({ where: { invoiceId: invoice.id } }),
+    prisma.payment.deleteMany({ where: { invoiceId: invoice.id } }),
     prisma.invoice.delete({ where: { id: invoice.id } }),
   ]);
 

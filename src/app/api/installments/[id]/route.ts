@@ -79,6 +79,21 @@ export async function PATCH(
     newStatus = "payment_plan";
   }
 
+  if (!nowPaid) {
+    const existingPayment = await prisma.payment.findFirst({
+      where: { installmentId: installment.id },
+    });
+    if (existingPayment?.reconciledAt) {
+      return NextResponse.json(
+        {
+          error:
+            "This installment's payment has already been reconciled with a bank transaction — unlink it in Reconciliation before reversing.",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const [updated, updatedInvoice] = await prisma.$transaction([
     prisma.installment.update({
       where: { id },
@@ -93,6 +108,19 @@ export async function PATCH(
       include: { items: INVOICE_ITEMS_INCLUDE },
     }),
   ]);
+
+  if (nowPaid) {
+    await prisma.payment.create({
+      data: {
+        invoiceId: invoice.id,
+        installmentId: installment.id,
+        amount: installment.amount,
+        paidDate: fromIsoDate(todayIso()),
+      },
+    });
+  } else {
+    await prisma.payment.deleteMany({ where: { installmentId: installment.id } });
+  }
 
   let activity = null;
   if (nowPaid) {

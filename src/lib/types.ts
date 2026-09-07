@@ -98,3 +98,39 @@ export interface AppSettings extends ReminderSchedule {
   businessPhone: string | null;
   country: string | null;
 }
+
+export type BankStatementUploadStatus =
+  | "uploaded"
+  | "parsing"
+  | "needs_review"
+  | "failed"
+  | "reviewed";
+
+export interface Payment {
+  id: string;
+  invoiceId: string;
+  installmentId?: string;
+  amount: number;
+  paidDate: string;
+  reconciledAt?: string;
+  bankTransactionId?: string;
+}
+
+export interface BankStatementUpload {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  status: BankStatementUploadStatus;
+  errorMessage?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+export interface BankTransaction {
+  id: string;
+  uploadId: string;
+  date: string;
+  description: string;
+  amount: number;
+  ignoredAt?: string;
+}

@@ -3,11 +3,15 @@ import type {
   ActivityEntry,
   ActivityType,
   AppSettings,
+  BankStatementUpload,
+  BankStatementUploadStatus,
+  BankTransaction,
   Client,
   Installment,
   Invoice,
   InvoiceItem,
   InvoiceStatus,
+  Payment,
   PaymentPlan,
   ReminderStage,
 } from "./types";
@@ -165,5 +169,69 @@ export function mapSettings(s: SettingsRow): AppSettings {
     businessEmail: s.businessEmail,
     businessPhone: s.businessPhone,
     country: s.country,
+  };
+}
+
+type PaymentRow = {
+  id: string;
+  amount: number;
+  paidDate: Date;
+  installmentId: string | null;
+  reconciledAt: Date | null;
+  bankTransactionId: string | null;
+  invoice: { invoiceNumber: string };
+};
+
+export function mapPayment(p: PaymentRow): Payment {
+  return {
+    id: p.id,
+    invoiceId: p.invoice.invoiceNumber,
+    installmentId: p.installmentId ?? undefined,
+    amount: p.amount,
+    paidDate: toIsoDate(p.paidDate),
+    reconciledAt: p.reconciledAt ? toIsoDate(p.reconciledAt) : undefined,
+    bankTransactionId: p.bankTransactionId ?? undefined,
+  };
+}
+
+type BankStatementUploadRow = {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  status: string;
+  errorMessage: string | null;
+  createdAt: Date;
+  reviewedAt: Date | null;
+};
+
+export function mapBankStatementUpload(u: BankStatementUploadRow): BankStatementUpload {
+  return {
+    id: u.id,
+    fileUrl: u.fileUrl,
+    fileName: u.fileName,
+    status: u.status as BankStatementUploadStatus,
+    errorMessage: u.errorMessage ?? undefined,
+    createdAt: toIsoDate(u.createdAt),
+    reviewedAt: u.reviewedAt ? toIsoDate(u.reviewedAt) : undefined,
+  };
+}
+
+type BankTransactionRow = {
+  id: string;
+  uploadId: string;
+  date: Date;
+  description: string;
+  amount: number;
+  ignoredAt: Date | null;
+};
+
+export function mapBankTransaction(t: BankTransactionRow): BankTransaction {
+  return {
+    id: t.id,
+    uploadId: t.uploadId,
+    date: toIsoDate(t.date),
+    description: t.description,
+    amount: t.amount,
+    ignoredAt: t.ignoredAt ? toIsoDate(t.ignoredAt) : undefined,
   };
 }

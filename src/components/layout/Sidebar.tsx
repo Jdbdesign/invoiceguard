@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/clients", label: "Clients", icon: ClientsIcon },
   { href: "/invoices", label: "Invoices", icon: InvoicesIcon },
+  { href: "/reconciliation", label: "Reconciliation", icon: ReconciliationIcon },
   { href: "/templates", label: "Templates", icon: TemplatesIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -133,6 +134,18 @@ function SettingsIcon(props: React.SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" {...props}>
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 13.5a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.9 2.9l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6v.2a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.9-2.9l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H4a2 2 0 110-4h.1a1.7 1.7 0 001.6-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.9-2.9l.1.1a1.7 1.7 0 001.9.3h.1a1.7 1.7 0 001-1.6V4a2 2 0 114 0v.1a1.7 1.7 0 001 1.6h.1a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.9 2.9l-.1.1a1.7 1.7 0 00-.3 1.9v.1a1.7 1.7 0 001.6 1h.2a2 2 0 110 4h-.1a1.7 1.7 0 00-1.6 1z" />
+    </svg>
+  );
+}
+
+function ReconciliationIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 4h9a1.5 1.5 0 0 1 1.5 1.5V17" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 20H7a1.5 1.5 0 0 1-1.5-1.5V7" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m5 7 2.5-2.5M5 7l2.5 2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m19 17-2.5 2.5M19 17l-2.5-2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 12.5 11 14l3.5-3.5" />
     </svg>
   );
 }

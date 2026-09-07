@@ -1,5 +1,5 @@
 import type { BadgeVariant } from "@/components/ui/Badge";
-import type { ClientStatus, Invoice } from "./types";
+import type { BankStatementUploadStatus, ClientStatus, Invoice } from "./types";
 import { getAgingBucket } from "./utils";
 
 export function invoiceStatusLabel(invoice: Invoice): {
@@ -28,4 +28,14 @@ export function clientStatusLabel(status: ClientStatus): {
   if (status === "payment_plan") return { label: "Payment Plan", variant: "info" };
   if (status === "overdue") return { label: "Overdue", variant: "danger" };
   return { label: "Current", variant: "neutral" };
+}
+
+export function bankStatementUploadStatusLabel(status: BankStatementUploadStatus): {
+  label: string;
+  variant: BadgeVariant;
+} {
+  if (status === "needs_review") return { label: "Needs review", variant: "warning" };
+  if (status === "failed") return { label: "Failed", variant: "danger" };
+  if (status === "reviewed") return { label: "Reviewed", variant: "success" };
+  return { label: "Processing", variant: "neutral" };
 }

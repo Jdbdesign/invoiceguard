@@ -1,0 +1,138 @@
+import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
+import { mapBankStatementUpload } from "@/lib/mappers";
+import { isPdfBuffer, looksLikeScannedPdf } from "@/lib/pdfValidation";
+import { extractTransactionsFromStatementText, StatementExtractionError } from "@/lib/bankStatementExtraction";
+
+const MAX_SIZE_BYTES = 15 * 1024 * 1024;
+
+interface CreateBody {
+  fileUrl?: unknown;
+  fileName?: unknown;
+}
+
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = (await request.json()) as CreateBody;
+  if (typeof body.fileUrl !== "string" || typeof body.fileName !== "string") {
+    return NextResponse.json({ error: "fileUrl and fileName are required" }, { status: 400 });
+  }
+  const { fileUrl, fileName } = body;
+
+  const upload = await prisma.bankStatementUpload.create({
+    data: { ownerId: session.user.id, fileUrl, fileName, status: "parsing" },
+  });
+
+  const fail = async (errorMessage: string) => {
+    const failed = await prisma.bankStatementUpload.update({
+      where: { id: upload.id },
+      data: { status: "failed", errorMessage },
+    });
+    return NextResponse.json({ upload: mapBankStatementUpload(failed) });
+  };
+
+  let parsedFileUrl: URL | null;
+  try {
+    parsedFileUrl = new URL(fileUrl);
+  } catch {
+    parsedFileUrl = null;
+  }
+  if (
+    !parsedFileUrl ||
+    parsedFileUrl.protocol !== "https:" ||
+    !parsedFileUrl.hostname.endsWith(".public.blob.vercel-storage.com")
+  ) {
+    console.error("Rejected fileUrl — unexpected host", parsedFileUrl?.hostname ?? "(unparseable)");
+    return fail("This file doesn't appear to be a valid upload — please try again.");
+  }
+
+  let fileResponse: Response;
+  try {
+    fileResponse = await fetch(fileUrl);
+  } catch (error) {
+    console.error("Bank statement file download failed", error);
+    return fail("Couldn't download the uploaded file — please try again.");
+  }
+  if (!fileResponse.ok) {
+    return fail("Couldn't download the uploaded file — please try again.");
+  }
+
+  // Check the declared size before buffering the body into memory — fileUrl
+  // only has to satisfy the hostname allowlist above, so without this an
+  // authenticated user could point it at an arbitrarily large blob and force
+  // this function to buffer all of it before the size check below ever runs.
+  const contentLength = Number(fileResponse.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_SIZE_BYTES) {
+    return fail("This file is larger than the 15MB limit.");
+  }
+
+  const arrayBuffer = await fileResponse.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  // Backstop for a missing or lying Content-Length header — defense in
+  // depth, not a replacement for the pre-read check above.
+  if (buffer.length > MAX_SIZE_BYTES) {
+    return fail("This file is larger than the 15MB limit.");
+  }
+  if (!isPdfBuffer(buffer)) {
+    return fail("This file doesn't appear to be a valid PDF.");
+  }
+
+  // NOTE: imports the internal lib entry point rather than the package root.
+  // pdf-parse@1.x's index.js runs a top-level debug block guarded by
+  // `!module.parent` that is meant to only fire when the package is executed
+  // directly (e.g. `node index.js`) for the maintainer's own manual testing.
+  // That guard misfires under Next.js's dynamic `import("pdf-parse")` — the
+  // ESM/CJS interop path leaves `module.parent` unset — which throws
+  // ENOENT trying to read a bundled fixture (`test/data/05-versions-space.pdf`)
+  // that isn't present in this project. Importing `pdf-parse/lib/pdf-parse.js`
+  // directly reaches the same parsing function without ever loading
+  // index.js's debug block. Verified locally: `import("pdf-parse")` reliably
+  // crashes with that ENOENT; this import path does not. Do not simplify this
+  // to `import("pdf-parse")` or bump past 1.1.1 without re-verifying this bug
+  // is actually fixed upstream — a routine dependency update that "cleans up"
+  // this import path will silently reintroduce the crash.
+  const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+  let extractedText: string;
+  let pageCount: number;
+  try {
+    const data = await pdfParse(buffer);
+    extractedText = data.text;
+    pageCount = data.numpages;
+  } catch (error) {
+    console.error("Bank statement PDF parsing failed", error);
+    return fail("Couldn't read this PDF — it may be corrupted.");
+  }
+
+  if (looksLikeScannedPdf(extractedText, pageCount)) {
+    return fail(
+      "This looks like a scanned or image-based PDF, which isn't supported yet — please upload a text-based statement export."
+    );
+  }
+
+  let rows;
+  try {
+    rows = await extractTransactionsFromStatementText(extractedText);
+  } catch (error) {
+    console.error("Bank statement transaction extraction failed", error);
+    if (error instanceof StatementExtractionError) {
+      return fail(error.message);
+    }
+    return fail("Couldn't parse this statement — please try again.");
+  }
+
+  const reviewed = await prisma.bankStatementUpload.update({
+    where: { id: upload.id },
+    // ParsedStatementRow[] is a plain-data array but doesn't structurally
+    // satisfy Prisma's InputJsonValue (which requires an index signature) —
+    // this cast is just telling Prisma's Json column type that the array is
+    // JSON-serializable, not changing what's actually stored.
+    data: { status: "needs_review", parsedRowsJson: rows as unknown as Prisma.InputJsonValue },
+  });
+
+  return NextResponse.json({ upload: mapBankStatementUpload(reviewed), rows });
+}

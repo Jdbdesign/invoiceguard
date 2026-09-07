@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mapActivity, mapInvoice } from "@/lib/mappers";
-import { formatCurrency } from "@/lib/utils";
+import { fromIsoDate } from "@/lib/dateSerialization";
+import { formatCurrency, todayIso } from "@/lib/utils";
 import { auth } from "@/auth";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 import { getOrCreateSettings } from "@/lib/settings";
@@ -53,6 +54,14 @@ export async function POST(
     where: { id: invoice.id },
     data: { status: "paid", balance: 0 },
     include: { items: INVOICE_ITEMS_INCLUDE },
+  });
+
+  await prisma.payment.create({
+    data: {
+      invoiceId: invoice.id,
+      amount: invoice.amount,
+      paidDate: fromIsoDate(todayIso()),
+    },
   });
 
   const amountLabel = formatCurrency(invoice.amount, invoice.client.currency);
