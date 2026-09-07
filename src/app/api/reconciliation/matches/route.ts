@@ -4,6 +4,9 @@ import { auth } from "@/auth";
 import { mapBankTransaction, mapPayment } from "@/lib/mappers";
 import { computeMatchCandidates } from "@/lib/reconciliationMatching";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
+import { BANK_TRANSACTION_CURRENCY, formatCurrency } from "@/lib/utils";
+
+const AMOUNT_EPSILON = 0.01;
 
 export async function GET() {
   const session = await auth();
@@ -78,8 +81,14 @@ export async function GET() {
 
 interface ConfirmBody {
   paymentId?: unknown;
+  invoiceId?: unknown;
   bankTransactionId?: unknown;
 }
+
+// Thrown inside the $transaction below when server-side re-validation of an
+// invoice-direct link fails — caught outside to return a 409 instead of the
+// generic 500 an uncaught error would produce.
+class InvoiceNotLinkableError extends Error {}
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -88,8 +97,19 @@ export async function POST(request: Request) {
   if (confirmError) return confirmError;
 
   const body = (await request.json()) as ConfirmBody;
-  if (typeof body.paymentId !== "string" || typeof body.bankTransactionId !== "string") {
-    return NextResponse.json({ error: "paymentId and bankTransactionId are required" }, { status: 400 });
+  if (typeof body.bankTransactionId !== "string") {
+    return NextResponse.json({ error: "bankTransactionId is required" }, { status: 400 });
+  }
+
+  if (typeof body.invoiceId === "string") {
+    return linkInvoiceDirect(session.user.id, body.invoiceId, body.bankTransactionId);
+  }
+
+  if (typeof body.paymentId !== "string") {
+    return NextResponse.json(
+      { error: "paymentId or invoiceId is required alongside bankTransactionId" },
+      { status: 400 }
+    );
   }
 
   const payment = await prisma.payment.findFirst({
@@ -109,4 +129,72 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ payment: mapPayment(updated) });
+}
+
+// "Link manually" can also target an unpaid invoice directly (no Payment
+// recorded yet — the normal state for an overdue invoice) instead of an
+// existing unreconciled Payment. Only offered by the search endpoint when the
+// invoice's remaining balance exactly matches the transaction's amount and
+// its currency matches BANK_TRANSACTION_CURRENCY, but both are re-checked
+// here inside the transaction rather than trusted from the client, same
+// TOCTOU-safety reasoning as the payment path above and the review-confirm
+// idempotency guard in bank-statements/[id]/route.ts. On success this
+// creates the Payment, marks the invoice paid in full, and logs the same
+// "payment_received" activity mark-paid would — mirroring what marking the
+// invoice paid manually and then reconciling it would have produced, minus
+// the receipt-send side effect (out of scope for a reconciliation action).
+async function linkInvoiceDirect(ownerId: string, invoiceId: string, bankTransactionId: string) {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.bankTransaction.findFirst({
+        where: { id: bankTransactionId, ownerId, payment: null },
+      });
+      if (!transaction) throw new InvoiceNotLinkableError("bank transaction not found or already matched");
+
+      const invoice = await tx.invoice.findFirst({
+        where: {
+          id: invoiceId,
+          status: { not: "paid" },
+          paymentPlan: null,
+          client: { ownerId, currency: BANK_TRANSACTION_CURRENCY },
+        },
+        include: { client: true },
+      });
+      if (!invoice) throw new InvoiceNotLinkableError("invoice not found or not eligible for direct linking");
+      if (Math.abs(invoice.balance - transaction.amount) > AMOUNT_EPSILON) {
+        throw new InvoiceNotLinkableError("invoice balance no longer matches this transaction's amount");
+      }
+
+      const payment = await tx.payment.create({
+        data: {
+          invoiceId: invoice.id,
+          amount: transaction.amount,
+          paidDate: transaction.date,
+          reconciledAt: new Date(),
+          bankTransactionId: transaction.id,
+        },
+      });
+      await tx.invoice.update({ where: { id: invoice.id }, data: { status: "paid", balance: 0 } });
+      await tx.activityLog.create({
+        data: {
+          clientId: invoice.clientId,
+          invoiceId: invoice.id,
+          type: "payment_received",
+          message: `Invoice ${invoice.invoiceNumber} paid in full — ${formatCurrency(transaction.amount, invoice.client.currency)} received (matched from bank statement).`,
+        },
+      });
+
+      return tx.payment.findFirstOrThrow({
+        where: { id: payment.id },
+        include: { invoice: { select: { invoiceNumber: true } }, bankTransaction: true },
+      });
+    });
+
+    return NextResponse.json({ payment: mapPayment(result) });
+  } catch (error) {
+    if (error instanceof InvoiceNotLinkableError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
 }

@@ -14,11 +14,9 @@ const ANALYZING_LABEL_DELAY_MS = 2000;
 
 export function UploadStatementButton() {
   const router = useRouter();
-  const { showToast } = useToast();
+  const { showToast, showProgressToast, updateProgressToast, dismissToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [statusLabel, setStatusLabel] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -26,30 +24,32 @@ export function UploadStatementButton() {
     if (!file) return;
 
     if (file.type !== "application/pdf") {
-      setError("Please upload a PDF file.");
+      showToast("Please upload a PDF file.");
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
-      setError("File must be smaller than 15MB.");
+      showToast("File must be smaller than 15MB.");
       return;
     }
 
-    setError(null);
     setUploading(true);
-    setStatusLabel("Uploading…");
+    // One toast, updated in place as the upload moves through its steps —
+    // not a new toast per step — so this never stacks up, and (like the
+    // inline status text it replaces) never shifts the buttons next to it.
+    const progressToastId = showProgressToast("Uploading…");
     let analyzingLabelTimer: ReturnType<typeof setTimeout> | undefined;
     try {
       const blob = await upload(`bank-statements/${file.name}`, file, {
         access: "public",
         handleUploadUrl: "/api/upload/bank-statement",
         onUploadProgress: (event) => {
-          setStatusLabel(`Uploading… ${Math.round(event.percentage)}%`);
+          updateProgressToast(progressToastId, `Uploading… ${Math.round(event.percentage)}%`);
         },
       });
 
-      setStatusLabel("Reading PDF…");
+      updateProgressToast(progressToastId, "Reading PDF…");
       analyzingLabelTimer = setTimeout(() => {
-        setStatusLabel("Analyzing transactions with AI…");
+        updateProgressToast(progressToastId, "Analyzing transactions with AI…");
       }, ANALYZING_LABEL_DELAY_MS);
 
       const response = await fetch("/api/bank-statements", {
@@ -59,20 +59,16 @@ export function UploadStatementButton() {
       });
       const data = await response.json();
       if (data.upload.status === "failed") {
-        const message = data.upload.errorMessage ?? "Couldn't process this statement.";
-        setError(message);
-        showToast(message);
+        showToast(data.upload.errorMessage ?? "Couldn't process this statement.");
         return;
       }
       router.push(`/reconciliation/${data.upload.id}/review`);
     } catch {
-      const message = "Upload failed — try again.";
-      setError(message);
-      showToast(message);
+      showToast("Upload failed — try again.");
     } finally {
       clearTimeout(analyzingLabelTimer);
+      dismissToast(progressToastId);
       setUploading(false);
-      setStatusLabel(null);
     }
   }
 
@@ -87,13 +83,6 @@ export function UploadStatementButton() {
         {uploading && <Spinner className="h-3.5 w-3.5" />}
         {uploading ? "Uploading…" : "Upload bank statement"}
       </button>
-      {uploading && statusLabel && (
-        <p className="mt-2 flex items-center gap-2 text-sm text-slate-500">
-          <Spinner className="h-3.5 w-3.5 text-slate-400" />
-          {statusLabel}
-        </p>
-      )}
-      {error && <p className="mt-2 text-sm text-rose-500">{error}</p>}
       <input
         ref={inputRef}
         type="file"

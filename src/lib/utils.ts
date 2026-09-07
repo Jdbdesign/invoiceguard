@@ -24,6 +24,14 @@ export const CURRENCIES: { code: string; label: string }[] = [
   { code: "JPY", label: "Japanese Yen" },
 ];
 
+/** Bank statements are Naira-only at launch (single business bank account,
+ * NGN-denominated) — BankTransaction has no currency column of its own, so
+ * this is the fixed assumption reconciliation uses when deciding whether a
+ * bank transaction is eligible to link directly to an invoice. Revisit (add
+ * BankTransaction.currency, capture it per-upload) if/when multi-currency
+ * bank accounts are supported. */
+export const BANK_TRANSACTION_CURRENCY = "NGN";
+
 export function formatCurrency(amount: number, currency: string = DEFAULT_CURRENCY): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -47,6 +55,18 @@ export function formatDateShort(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const date = new Date(y, m - 1, d);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** For full ISO datetime strings (with time), unlike formatDate/formatDateShort
+ * above which are for date-only "yyyy-mm-dd" values. */
+export function formatDateTime(isoDateTime: string): string {
+  return new Date(isoDateTime).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function parseIso(iso: string): Date {
