@@ -84,7 +84,13 @@ ${statementText}`;
       .filter((block) => block.type === "text")
       .map((block) => block.text)
       .join("\n");
-  } catch {
+  } catch (error) {
+    // Log the real Anthropic SDK error (rate limit, invalid request, model
+    // access, timeout, etc.) before replacing it with the generic
+    // user-facing message below — otherwise the actual cause never reaches
+    // the console.error in the route's outer catch, since by then this
+    // StatementExtractionError has already overwritten it.
+    console.error("Anthropic statement extraction call failed", error);
     throw new StatementExtractionError("Couldn't parse this statement — please try again.");
   }
 

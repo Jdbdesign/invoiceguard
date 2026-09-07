@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { bankStatementUploadStatusLabel } from "@/lib/badgeHelpers";
+import { formatDateTime } from "@/lib/utils";
 import type { BankStatementUpload } from "@/lib/types";
 
 export function UploadsList({ uploads }: { uploads: BankStatementUpload[] }) {
@@ -26,7 +27,7 @@ export function UploadsList({ uploads }: { uploads: BankStatementUpload[] }) {
               >
                 <div>
                   <p className="text-slate-700">
-                    {upload.fileName} — {upload.createdAt}
+                    {upload.fileName} — {formatDateTime(upload.createdAt)}
                   </p>
                   {upload.status === "failed" && upload.errorMessage && (
                     <p className="mt-1 text-xs text-rose-500">{upload.errorMessage}</p>

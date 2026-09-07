@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageLoading } from "@/components/ui/Spinner";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useToast } from "@/context/ToastContext";
 import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
 import type { Payment, BankTransaction } from "@/lib/types";
-import { LinkManuallyModal, type LinkTarget } from "./LinkManuallyModal";
+import { LinkManuallyModal, type LinkTarget, type ConfirmLink } from "./LinkManuallyModal";
 
 interface MatchesResponse {
   matched: { payment: Payment; transaction: BankTransaction }[];
@@ -40,12 +41,13 @@ async function fetchWithPasswordRetry(url: string, init: RequestInit): Promise<R
   return fetch(url, init);
 }
 
-export function MatchBuckets() {
+export function MatchBuckets({ refreshToken = 0 }: { refreshToken?: number }) {
   const { showToast } = useToast();
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [linkTarget, setLinkTarget] = useState<LinkTarget | null>(null);
+  const [clearingStatement, setClearingStatement] = useState(false);
 
   async function load() {
     const response = await fetch("/api/reconciliation/matches");
@@ -84,20 +86,22 @@ export function MatchBuckets() {
     return () => {
       cancelled = true;
     };
+    // refreshToken is the intentional re-run trigger (bumped by the "Refresh
+    // matches" button in ReconciliationWorkspace); showToast is stable via context
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshToken]);
 
   // Returns true on success so callers (the modal picker included) can react
   // to the outcome directly, without duplicating this fetch/retry logic.
   // Toast + inline error + load() on failure/success are unchanged for the
   // existing Confirm-button call sites — only the return value is new.
-  async function confirmMatch(paymentId: string, bankTransactionId: string): Promise<boolean> {
+  async function confirmMatch(link: ConfirmLink): Promise<boolean> {
     setActionError(null);
     try {
       const response = await fetchWithPasswordRetry("/api/reconciliation/matches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId, bankTransactionId }),
+        body: JSON.stringify(link),
       });
       if (!response.ok) {
         const message = "Couldn't confirm this match — try again.";
@@ -151,6 +155,28 @@ export function MatchBuckets() {
     load();
   }
 
+  async function clearStatement() {
+    setActionError(null);
+    try {
+      const response = await fetchWithPasswordRetry("/api/reconciliation/clear-statement", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const message = "Couldn't clear these transactions — try again.";
+        setActionError(message);
+        showToast(message);
+        return;
+      }
+      setClearingStatement(false);
+      showToast("Unmatched bank transactions cleared.");
+      load();
+    } catch {
+      const message = "Password confirmation was cancelled — nothing was cleared.";
+      setActionError(message);
+      showToast(message);
+    }
+  }
+
   if (loadError) return <p className="text-sm text-rose-500">{loadError}</p>;
   if (!data) return <PageLoading label="Loading reconciliation data…" />;
 
@@ -177,7 +203,8 @@ export function MatchBuckets() {
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"
               >
                 <span className="text-slate-700">
-                  {transaction.date} — {transaction.description} — {transaction.amount} ↔ Invoice{" "}
+                  {transaction.date} — {transaction.description} —{" "}
+                  <span className="font-semibold text-slate-900">{transaction.amount}</span> ↔ Invoice{" "}
                   {payment.invoiceId}
                 </span>
                 <button
@@ -194,11 +221,12 @@ export function MatchBuckets() {
                 className="flex flex-wrap items-center justify-between gap-3 bg-blue-50/60 px-5 py-4 text-sm"
               >
                 <span className="text-slate-700">
-                  Suggested: {transaction.date} — {transaction.description} — {transaction.amount}{" "}
+                  Suggested: {transaction.date} — {transaction.description} —{" "}
+                  <span className="font-semibold text-slate-900">{transaction.amount}</span>{" "}
                   ↔ Invoice {payment.invoiceId}
                 </span>
                 <button
-                  onClick={() => confirmMatch(payment.id, transaction.id)}
+                  onClick={() => confirmMatch({ paymentId: payment.id, bankTransactionId: transaction.id })}
                   className={CONFIRM_BUTTON_CLASS}
                 >
                   Confirm
@@ -221,13 +249,14 @@ export function MatchBuckets() {
             {data.needsReview.map(({ transaction, candidates }) => (
               <li key={transaction.id} className="bg-amber-50/60 px-5 py-4 text-sm">
                 <p className="text-slate-700">
-                  {transaction.date} — {transaction.description} — {transaction.amount}
+                  {transaction.date} — {transaction.description} —{" "}
+                  <span className="font-semibold text-slate-900">{transaction.amount}</span>
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {candidates.map((candidate) => (
                     <button
                       key={candidate.id}
-                      onClick={() => confirmMatch(candidate.id, transaction.id)}
+                      onClick={() => confirmMatch({ paymentId: candidate.id, bankTransactionId: transaction.id })}
                       className="rounded border border-amber-400 px-2.5 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
                     >
                       Invoice {candidate.invoiceId} ({candidate.paidDate})
@@ -261,7 +290,9 @@ export function MatchBuckets() {
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"
               >
                 <span className="text-slate-700">
-                  Invoice {payment.invoiceId} — {payment.amount} paid {payment.paidDate}
+                  Invoice {payment.invoiceId} —{" "}
+                  <span className="font-semibold text-slate-900">{payment.amount}</span> paid{" "}
+                  {payment.paidDate}
                 </span>
                 <button
                   onClick={() => setLinkTarget({ searchFor: "transaction", payment })}
@@ -279,6 +310,17 @@ export function MatchBuckets() {
         <CardHeader
           title="Unmatched — Bank"
           subtitle="Bank transactions with no matching payment on record."
+          action={
+            data.unmatchedBank.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setClearingStatement(true)}
+                className="whitespace-nowrap text-xs font-medium text-rose-500 hover:text-rose-600"
+              >
+                Clear statement
+              </button>
+            ) : undefined
+          }
         />
         {data.unmatchedBank.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-500">Nothing unmatched.</p>
@@ -290,7 +332,8 @@ export function MatchBuckets() {
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"
               >
                 <span className="text-slate-700">
-                  {transaction.date} — {transaction.description} — {transaction.amount}
+                  {transaction.date} — {transaction.description} —{" "}
+                  <span className="font-semibold text-slate-900">{transaction.amount}</span>
                 </span>
                 <div className="flex items-center gap-3">
                   <button
@@ -316,6 +359,15 @@ export function MatchBuckets() {
         target={linkTarget}
         onClose={() => setLinkTarget(null)}
         onConfirm={confirmMatch}
+      />
+
+      <ConfirmModal
+        open={clearingStatement}
+        onClose={() => setClearingStatement(false)}
+        onConfirm={clearStatement}
+        title="Clear statement?"
+        message="This clears every unmatched bank transaction (across all your uploaded statements) from the buckets. Confirmed matches are not affected. You'll need to upload the statement again to reconcile these transactions. This can't be undone."
+        confirmLabel="Clear statement"
       />
     </div>
   );

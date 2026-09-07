@@ -64,6 +64,7 @@ export async function getClientListItems(ownerId: string): Promise<ClientListIte
       totalOwed: totalOwedByClient.get(c.id) ?? 0,
       oldestOverdue: oldest ? { id: oldest.id, dueDate: oldest.dueDate } : null,
       status,
+      createdAt: toIsoDate(c.createdAt),
     };
   });
 

@@ -85,16 +85,45 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         throw new AlreadyReviewedError();
       }
 
-      await tx.bankTransaction.createMany({
-        data: rows.map((row, index) => ({
-          uploadId: upload.id,
+      // Re-uploading a statement (in full or in part) must not duplicate
+      // BankTransaction rows in the buckets — only the Recent Uploads log
+      // should show every upload attempt. A transaction is treated as
+      // "already imported" if this owner already has a row with the same
+      // date + description + amount, regardless of which upload created it
+      // or its current ignored/matched state.
+      const existing = await tx.bankTransaction.findMany({
+        where: {
           ownerId: session.user.id,
-          date: fromIsoDate(row.date),
-          description: row.description,
-          amount: row.amount,
-          position: index,
-        })),
+          OR: rows.map((row) => ({
+            date: fromIsoDate(row.date),
+            description: row.description,
+            amount: row.amount,
+          })),
+        },
+        select: { date: true, description: true, amount: true },
       });
+      const existingKeys = new Set(
+        existing.map((e) => `${e.date.toISOString()}|${e.description}|${e.amount}`)
+      );
+      const newRows = rows
+        .map((row, index) => ({ row, index }))
+        .filter(
+          ({ row }) =>
+            !existingKeys.has(`${fromIsoDate(row.date).toISOString()}|${row.description}|${row.amount}`)
+        );
+
+      if (newRows.length > 0) {
+        await tx.bankTransaction.createMany({
+          data: newRows.map(({ row, index }) => ({
+            uploadId: upload.id,
+            ownerId: session.user.id,
+            date: fromIsoDate(row.date),
+            description: row.description,
+            amount: row.amount,
+            position: index,
+          })),
+        });
+      }
     });
   } catch (error) {
     if (error instanceof AlreadyReviewedError) {

@@ -11,6 +11,7 @@ import type {
   Invoice,
   InvoiceItem,
   InvoiceStatus,
+  LinkableInvoice,
   Payment,
   PaymentPlan,
   ReminderStage,
@@ -118,6 +119,23 @@ export function mapInvoice(inv: InvoiceRow): Invoice {
   };
 }
 
+type LinkableInvoiceRow = {
+  invoiceNumber: string;
+  balance: number;
+  dueDate: Date;
+  client: { name: string; currency: string };
+};
+
+export function mapLinkableInvoice(inv: LinkableInvoiceRow): LinkableInvoice {
+  return {
+    id: inv.invoiceNumber,
+    clientName: inv.client.name,
+    amount: inv.balance,
+    currency: inv.client.currency,
+    dueDate: toIsoDate(inv.dueDate),
+  };
+}
+
 export function mapActivity(a: ActivityRow): ActivityEntry {
   return {
     id: a.id,
@@ -211,7 +229,10 @@ export function mapBankStatementUpload(u: BankStatementUploadRow): BankStatement
     fileName: u.fileName,
     status: u.status as BankStatementUploadStatus,
     errorMessage: u.errorMessage ?? undefined,
-    createdAt: toIsoDate(u.createdAt),
+    // Full ISO datetime (not toIsoDate's date-only truncation) — Recent
+    // Uploads shows the time an upload happened, not just the day, since
+    // re-uploads on the same day need to be distinguishable in the log.
+    createdAt: u.createdAt.toISOString(),
     reviewedAt: u.reviewedAt ? toIsoDate(u.reviewedAt) : undefined,
   };
 }

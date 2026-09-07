@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapBankStatementUpload, mapBankTransaction, mapPayment } from "./mappers";
+import { mapBankStatementUpload, mapBankTransaction, mapLinkableInvoice, mapPayment } from "./mappers";
 
 describe("mapPayment", () => {
   it("maps a fully-populated row, resolving invoiceId to the invoice number", () => {
@@ -56,7 +56,7 @@ describe("mapBankStatementUpload", () => {
       fileName: "statement.pdf",
       status: "reviewed",
       errorMessage: undefined,
-      createdAt: "2026-03-01",
+      createdAt: "2026-03-01T00:00:00.000Z",
       reviewedAt: "2026-03-02",
     });
   });
@@ -92,5 +92,23 @@ describe("mapBankTransaction", () => {
       ignoredAt: new Date("2026-03-05T00:00:00.000Z"),
     });
     expect(result.ignoredAt).toBe("2026-03-05");
+  });
+});
+
+describe("mapLinkableInvoice", () => {
+  it("maps an invoice row to its link-picker shape, using balance as the linkable amount", () => {
+    const result = mapLinkableInvoice({
+      invoiceNumber: "INV-042",
+      balance: 45000,
+      dueDate: new Date("2026-02-15T00:00:00.000Z"),
+      client: { name: "IDANIMO TECHNOLOGY LIMITED", currency: "NGN" },
+    });
+    expect(result).toEqual({
+      id: "INV-042",
+      clientName: "IDANIMO TECHNOLOGY LIMITED",
+      amount: 45000,
+      currency: "NGN",
+      dueDate: "2026-02-15",
+    });
   });
 });
