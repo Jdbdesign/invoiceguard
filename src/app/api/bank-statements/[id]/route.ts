@@ -12,6 +12,12 @@ interface ReviewRow {
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Thrown inside the $transaction callback below when a concurrent request
+// already won the needs_review -> reviewed transition, so the transaction
+// rolls back without creating any BankTransaction rows; caught outside to
+// return the same "already reviewed" 400 as the sequential-resubmission case.
+class AlreadyReviewedError extends Error {}
+
 function parseRows(raw: unknown): { date: string; description: string; amount: number }[] | null {
   if (!Array.isArray(raw)) return null;
   const rows: { date: string; description: string; amount: number }[] = [];
@@ -60,22 +66,47 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "invalid rows" }, { status: 400 });
   }
 
-  const [, updatedUpload] = await prisma.$transaction([
-    prisma.bankTransaction.createMany({
-      data: rows.map((row, index) => ({
-        uploadId: upload.id,
-        ownerId: session.user.id,
-        date: fromIsoDate(row.date),
-        description: row.description,
-        amount: row.amount,
-        position: index,
-      })),
-    }),
-    prisma.bankStatementUpload.update({
-      where: { id: upload.id },
-      data: { status: "reviewed", reviewedAt: new Date() },
-    }),
-  ]);
+  // The findFirst status check above only rules out the sequential
+  // re-submission cases (back button, double-click). Two concurrent requests
+  // (e.g. two browser tabs) can both pass that read before either commits, so
+  // the actual guard against a duplicate BankTransaction batch has to be a
+  // conditional update inside the transaction itself: updateMany's `count`
+  // tells us whether *this* call is the one that gets to flip
+  // needs_review -> reviewed. If another request already flipped it,
+  // count is 0 and we roll back without creating any rows.
+  const reviewedAt = new Date();
+  try {
+    await prisma.$transaction(async (tx) => {
+      const { count } = await tx.bankStatementUpload.updateMany({
+        where: { id: upload.id, ownerId: session.user.id, status: "needs_review" },
+        data: { status: "reviewed", reviewedAt },
+      });
+      if (count === 0) {
+        throw new AlreadyReviewedError();
+      }
 
-  return NextResponse.json({ upload: mapBankStatementUpload(updatedUpload) });
+      await tx.bankTransaction.createMany({
+        data: rows.map((row, index) => ({
+          uploadId: upload.id,
+          ownerId: session.user.id,
+          date: fromIsoDate(row.date),
+          description: row.description,
+          amount: row.amount,
+          position: index,
+        })),
+      });
+    });
+  } catch (error) {
+    if (error instanceof AlreadyReviewedError) {
+      return NextResponse.json(
+        { error: "This statement has already been reviewed." },
+        { status: 400 },
+      );
+    }
+    throw error;
+  }
+
+  return NextResponse.json({
+    upload: mapBankStatementUpload({ ...upload, status: "reviewed", reviewedAt }),
+  });
 }
