@@ -249,7 +249,7 @@ export function MatchBuckets() {
       <Card>
         <CardHeader
           title="Unmatched — Ours"
-          subtitle="Payments recorded in InvoiceGuard with no matching bank transaction yet."
+          subtitle="Payments recorded in Remitrak with no matching bank transaction yet."
         />
         {data.unmatchedOurs.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-500">Nothing unmatched.</p>
