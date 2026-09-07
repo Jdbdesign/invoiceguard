@@ -19,12 +19,16 @@ export interface ClientListItem extends Client {
   totalOwed: number;
   oldestOverdue: { id: string; dueDate: string } | null;
   status: ClientStatus;
+  /** When this client was added — audit-trail only, not shown on the public
+   * share view (see SharedClientSummary). */
+  createdAt: string;
 }
 
 /** Whole-list share view row — the same fields the authenticated Clients
  * list actually renders, deliberately excluding phone (present on
- * ClientListItem/Client but never shown on that page). */
-export type SharedClientSummary = Omit<ClientListItem, "phone">;
+ * ClientListItem/Client but never shown on that page) and createdAt
+ * (an internal audit-trail field with no reason to be public). */
+export type SharedClientSummary = Omit<ClientListItem, "phone" | "createdAt">;
 
 export interface InvoiceItem {
   id: string;
@@ -122,6 +126,7 @@ export interface BankStatementUpload {
   fileName: string;
   status: BankStatementUploadStatus;
   errorMessage?: string;
+  /** Full ISO datetime (not date-only) — this is when the upload happened. */
   createdAt: string;
   reviewedAt?: string;
 }
@@ -133,4 +138,17 @@ export interface BankTransaction {
   description: string;
   amount: number;
   ignoredAt?: string;
+}
+
+/** An unpaid invoice offered by /api/reconciliation/search as a "Link
+ * manually" target in its own right (not just via an already-recorded
+ * Payment) — only surfaced when its remaining balance exactly matches the
+ * bank transaction being linked and its currency matches
+ * BANK_TRANSACTION_CURRENCY. Linking one creates the Payment on confirm. */
+export interface LinkableInvoice {
+  id: string;
+  clientName: string;
+  amount: number;
+  currency: string;
+  dueDate: string;
 }

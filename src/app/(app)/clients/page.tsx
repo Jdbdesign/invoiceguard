@@ -94,6 +94,7 @@ export default function ClientsPage() {
                   <th className="px-5 py-3">Total owed</th>
                   <th className="px-5 py-3">Oldest overdue invoice</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Date added</th>
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
@@ -129,6 +130,7 @@ export default function ClientsPage() {
                       <td className="px-5 py-4">
                         <Badge variant={badge.variant}>{badge.label}</Badge>
                       </td>
+                      <td className="px-5 py-4 text-slate-600">{formatDate(client.createdAt)}</td>
                       <td className="px-5 py-4 text-right">
                         <RowActionsMenu
                           onEdit={() => setEditingClient(client)}
@@ -169,8 +171,11 @@ export default function ClientsPage() {
                           <span className="text-slate-400">No overdue invoices</span>
                         )}
                       </p>
-                      <div className="mt-2">
+                      <div className="mt-2 flex items-center gap-2">
                         <Badge variant={badge.variant}>{badge.label}</Badge>
+                        <span className="text-xs text-slate-400">
+                          Added {formatDate(client.createdAt)}
+                        </span>
                       </div>
                     </div>
                     <RowActionsMenu

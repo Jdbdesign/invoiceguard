@@ -168,6 +168,7 @@ export default function InvoicesPage() {
                   <th className="px-5 py-3">Due date</th>
                   <th className="px-5 py-3">Days overdue</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Date added</th>
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
@@ -201,6 +202,7 @@ export default function InvoicesPage() {
                       <td className="px-5 py-4">
                         <Badge variant={badge.variant}>{badge.label}</Badge>
                       </td>
+                      <td className="px-5 py-4 text-slate-600">{formatDate(invoice.issueDate)}</td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {invoice.status !== "paid" && (
@@ -268,6 +270,9 @@ export default function InvoicesPage() {
                       {invoice.status !== "paid" && overdue !== null && overdue > 0 && (
                         <span className="ml-1.5 text-slate-400">· {overdue}d overdue</span>
                       )}
+                      <span className="ml-1.5 text-slate-400">
+                        · Added {formatDate(invoice.issueDate)}
+                      </span>
                     </p>
                     {invoice.status !== "paid" && (
                       <button

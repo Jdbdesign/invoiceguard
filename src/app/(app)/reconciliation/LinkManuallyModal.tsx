@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import type { Payment, BankTransaction } from "@/lib/types";
+import type { Payment, BankTransaction, LinkableInvoice } from "@/lib/types";
 
 export type LinkTarget =
   | { searchFor: "transaction"; payment: Payment }
   | { searchFor: "payment"; transaction: BankTransaction };
+
+type SearchResult =
+  | ({ kind: "payment" } & Payment)
+  | ({ kind: "invoice" } & LinkableInvoice)
+  | ({ kind: "transaction" } & BankTransaction);
+
+export type ConfirmLink =
+  | { paymentId: string; bankTransactionId: string }
+  | { invoiceId: string; bankTransactionId: string };
 
 export function LinkManuallyModal({
   target,
@@ -15,12 +24,12 @@ export function LinkManuallyModal({
 }: {
   target: LinkTarget | null;
   onClose: () => void;
-  onConfirm: (paymentId: string, bankTransactionId: string) => Promise<boolean>;
+  onConfirm: (link: ConfirmLink) => Promise<boolean>;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<(Payment | BankTransaction)[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [linkingKey, setLinkingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Reset search state whenever a new target is set (or the modal closes),
@@ -44,9 +53,14 @@ export function LinkManuallyModal({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- signals the debounced fetch below has started; same accepted pattern as reset-password/page.tsx's token-check effect, not a synced-from-external-system value
     setLoading(true);
     const timeout = setTimeout(async () => {
-      const response = await fetch(
-        `/api/reconciliation/search?type=${target.searchFor}&q=${encodeURIComponent(trimmedQuery)}`
-      );
+      const params = new URLSearchParams({ type: target.searchFor, q: trimmedQuery });
+      // Only meaningful (and only sent) for the "payment" direction — lets the
+      // API also offer unpaid invoices whose remaining balance exactly
+      // matches *this* transaction as direct link targets.
+      if (target.searchFor === "payment") {
+        params.set("transactionId", target.transaction.id);
+      }
+      const response = await fetch(`/api/reconciliation/search?${params.toString()}`);
       const data = await response.json().catch(() => ({ results: [] }));
       setResults(data.results ?? []);
       setLoading(false);
@@ -60,16 +74,20 @@ export function LinkManuallyModal({
   const visibleResults = trimmedQuery ? results : [];
   const visibleLoading = trimmedQuery ? loading : false;
 
-  async function pick(result: Payment | BankTransaction) {
+  async function pick(result: SearchResult) {
     if (!target) return;
-    setLinkingId(result.id);
+    const key = `${result.kind}:${result.id}`;
+    setLinkingKey(key);
     setError(null);
-    const [paymentId, bankTransactionId] =
+    const bankTransactionId = target.searchFor === "transaction" ? result.id : target.transaction.id;
+    const link: ConfirmLink =
       target.searchFor === "transaction"
-        ? [target.payment.id, result.id]
-        : [result.id, target.transaction.id];
-    const success = await onConfirm(paymentId, bankTransactionId);
-    setLinkingId(null);
+        ? { paymentId: target.payment.id, bankTransactionId }
+        : result.kind === "invoice"
+          ? { invoiceId: result.id, bankTransactionId }
+          : { paymentId: result.id, bankTransactionId };
+    const success = await onConfirm(link);
+    setLinkingKey(null);
     if (success) onClose();
     else setError("Couldn't link this pair — try again.");
   }
@@ -91,23 +109,38 @@ export function LinkManuallyModal({
           <p className="text-sm text-slate-400">No matches.</p>
         )}
         <ul className="divide-y divide-slate-100">
-          {visibleResults.map((result) => (
-            <li key={result.id} className="flex items-center justify-between py-2 text-sm">
-              <span>
-                {"invoiceId" in result
-                  ? `Invoice ${result.invoiceId} — ${result.amount} paid ${result.paidDate}`
-                  : `${result.date} — ${result.description} — ${result.amount}`}
-              </span>
-              <button
-                type="button"
-                onClick={() => pick(result)}
-                disabled={linkingId === result.id}
-                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-              >
-                {linkingId === result.id ? "Linking…" : "Link"}
-              </button>
-            </li>
-          ))}
+          {visibleResults.map((result) => {
+            const key = `${result.kind}:${result.id}`;
+            return (
+              <li key={key} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span>
+                  {result.kind === "invoice" ? (
+                    <>
+                      Invoice {result.id} — {result.clientName} —{" "}
+                      {result.amount} {result.currency} outstanding{" "}
+                      <span className="text-xs text-slate-400">(not yet recorded as paid)</span>
+                    </>
+                  ) : result.kind === "payment" ? (
+                    <>
+                      Invoice {result.invoiceId} — {result.amount} paid {result.paidDate}
+                    </>
+                  ) : (
+                    <>
+                      {result.date} — {result.description} — {result.amount}
+                    </>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => pick(result)}
+                  disabled={linkingKey === key}
+                  className="whitespace-nowrap rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  {linkingKey === key ? "Linking…" : "Link"}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </Modal>
