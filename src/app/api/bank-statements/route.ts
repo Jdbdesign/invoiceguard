@@ -82,30 +82,38 @@ export async function POST(request: Request) {
     return fail("This file doesn't appear to be a valid PDF.");
   }
 
-  // NOTE: imports the internal lib entry point rather than the package root.
-  // pdf-parse@1.x's index.js runs a top-level debug block guarded by
-  // `!module.parent` that is meant to only fire when the package is executed
-  // directly (e.g. `node index.js`) for the maintainer's own manual testing.
-  // That guard misfires under Next.js's dynamic `import("pdf-parse")` — the
-  // ESM/CJS interop path leaves `module.parent` unset — which throws
-  // ENOENT trying to read a bundled fixture (`test/data/05-versions-space.pdf`)
-  // that isn't present in this project. Importing `pdf-parse/lib/pdf-parse.js`
-  // directly reaches the same parsing function without ever loading
-  // index.js's debug block. Verified locally: `import("pdf-parse")` reliably
-  // crashes with that ENOENT; this import path does not. Do not simplify this
-  // to `import("pdf-parse")` or bump past 1.1.1 without re-verifying this bug
-  // is actually fixed upstream — a routine dependency update that "cleans up"
-  // this import path will silently reintroduce the crash.
-  const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+  const { PDFParse, PasswordException, InvalidPDFException, FormatError, UnknownErrorException } =
+    await import("pdf-parse");
+  // pdfjs-dist (which pdf-parse wraps) auto-locates its worker script relative
+  // to its own bundled module location — a lookup that breaks once Turbopack/
+  // webpack bundle it into a chunk without the sibling pdf.worker.mjs file
+  // ("Setting up fake worker failed: Cannot find module ...pdf.worker.mjs").
+  // Pointing it at the real on-disk worker via pdf-parse's own `/worker`
+  // export sidesteps that bundling gap. See next.config.ts's
+  // `serverExternalPackages` for the other half of this fix.
+  const { getPath } = await import("pdf-parse/worker");
+  PDFParse.setWorker(getPath());
   let extractedText: string;
   let pageCount: number;
+  const parser = new PDFParse({ data: buffer });
   try {
-    const data = await pdfParse(buffer);
-    extractedText = data.text;
-    pageCount = data.numpages;
+    const result = await parser.getText();
+    extractedText = result.text;
+    pageCount = result.total;
   } catch (error) {
     console.error("Bank statement PDF parsing failed", error);
+    if (error instanceof PasswordException) {
+      return fail("This PDF is password-protected — please upload an unprotected statement export.");
+    }
+    if (error instanceof InvalidPDFException || error instanceof FormatError) {
+      return fail("Couldn't read this PDF — it may be corrupted.");
+    }
+    if (error instanceof UnknownErrorException) {
+      return fail("Couldn't read this PDF — please try re-exporting it and uploading again.");
+    }
     return fail("Couldn't read this PDF — it may be corrupted.");
+  } finally {
+    await parser.destroy();
   }
 
   if (looksLikeScannedPdf(extractedText, pageCount)) {
