@@ -9,6 +9,12 @@ const RESULTS_DIR = path.join(SCRATCH, "results");
 const MODELS = ["claude-opus-5", "claude-haiku-4-5"] as const;
 const client = new Anthropic();
 
+interface Row {
+  date: string;
+  description: string;
+  amount: number;
+}
+
 function extractRows(text: string) {
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) return { error: "no-json-array-found", raw: text };
@@ -20,7 +26,7 @@ function extractRows(text: string) {
   }
   if (!Array.isArray(parsed)) return { error: "not-an-array", raw: text };
   const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-  function isValidRow(row: unknown): boolean {
+  function isValidRow(row: unknown): row is Row {
     if (!row || typeof row !== "object") return false;
     const r = row as Record<string, unknown>;
     return (
@@ -63,10 +69,10 @@ async function main() {
       });
       const text = response.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       const parsed = extractRows(text);
-      const rows = "rows" in parsed ? parsed.rows : [];
-      const owealthWithdrawals = rows.filter((r: any) => r.description.includes("OWealth Withdrawal"));
-      const negCount = owealthWithdrawals.filter((r: any) => r.amount < 0).length;
-      const posCount = owealthWithdrawals.filter((r: any) => r.amount > 0).length;
+      const rows = ("rows" in parsed ? parsed.rows : []) ?? [];
+      const owealthWithdrawals = rows.filter((r) => r.description.includes("OWealth Withdrawal"));
+      const negCount = owealthWithdrawals.filter((r) => r.amount < 0).length;
+      const posCount = owealthWithdrawals.filter((r) => r.amount > 0).length;
       console.error(`  ${model} run${run}: total rows=${rows.length}, OWealth Withdrawal rows=${owealthWithdrawals.length}, negative=${negCount}, positive=${posCount}`);
       fs.writeFileSync(
         path.join(RESULTS_DIR, `statement-rerun-${model}-run${run}.json`),

@@ -87,7 +87,7 @@ async function main() {
       try {
         const result = await extractWithModel(model, statementText);
         fileResults[model] = result;
-        const rowCount = "rows" in result.parsed ? result.parsed.rows.length : 0;
+        const rowCount = "rows" in result.parsed ? (result.parsed.rows?.length ?? 0) : 0;
         console.error(`    ${model}: stop_reason=${result.stopReason} rows=${rowCount}`);
       } catch (err) {
         fileResults[model] = { error: String(err) };
