@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
-import { mapBankTransaction, mapPayment } from "@/lib/mappers";
-import { computeMatchCandidates } from "@/lib/reconciliationMatching";
+import { mapBankTransaction, mapLinkableInvoice, mapPayment } from "@/lib/mappers";
+import { classifyMatch, computeMatchCandidates, type MatchCandidate } from "@/lib/reconciliationMatching";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 import { BANK_TRANSACTION_CURRENCY, formatCurrency } from "@/lib/utils";
 
@@ -13,19 +13,35 @@ export async function GET() {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const ownerId = session.user.id;
 
-  const [confirmedPayments, unmatchedPaymentRows, candidateTransactionRows] = await Promise.all([
-    prisma.payment.findMany({
-      where: { bankTransactionId: { not: null }, invoice: { client: { ownerId } } },
-      include: { invoice: { select: { invoiceNumber: true } }, bankTransaction: true },
-    }),
-    prisma.payment.findMany({
-      where: { reconciledAt: null, invoice: { client: { ownerId } } },
-      include: { invoice: { select: { invoiceNumber: true } } },
-    }),
-    prisma.bankTransaction.findMany({
-      where: { ownerId, ignoredAt: null, amount: { gt: 0 }, payment: null },
-    }),
-  ]);
+  const [confirmedPayments, unmatchedPaymentRows, eligibleInvoiceRows, candidateTransactionRows] =
+    await Promise.all([
+      prisma.payment.findMany({
+        where: { bankTransactionId: { not: null }, invoice: { client: { ownerId } } },
+        include: { invoice: { select: { invoiceNumber: true } }, bankTransaction: true },
+      }),
+      prisma.payment.findMany({
+        where: { reconciledAt: null, invoice: { client: { ownerId } } },
+        include: { invoice: { select: { invoiceNumber: true, client: { select: { name: true } } } } },
+      }),
+      // Auto-matching needs to check unpaid invoice balances directly, not
+      // just existing Payment rows: the normal reconciliation case is a bank
+      // transfer arriving before anyone in Remitrak records a payment, so
+      // there's no Payment row yet for it to match against. Same eligibility
+      // rules as the manual "Link manually" invoice search (search/route.ts)
+      // and linkInvoiceDirect below: not paid, no payment plan, client
+      // currency matches the bank account's fixed currency.
+      prisma.invoice.findMany({
+        where: {
+          status: { not: "paid" },
+          paymentPlan: null,
+          client: { ownerId, currency: BANK_TRANSACTION_CURRENCY },
+        },
+        include: { client: true },
+      }),
+      prisma.bankTransaction.findMany({
+        where: { ownerId, ignoredAt: null, amount: { gt: 0 }, payment: null },
+      }),
+    ]);
 
   const matched = confirmedPayments
     .filter((p) => p.bankTransaction)
@@ -35,40 +51,60 @@ export async function GET() {
     }));
 
   const candidateResults = computeMatchCandidates(
-    candidateTransactionRows.map((t) => ({ id: t.id, amount: t.amount, dateIso: t.date.toISOString().slice(0, 10) })),
-    unmatchedPaymentRows.map((p) => ({ id: p.id, amount: p.amount, paidDateIso: p.paidDate.toISOString().slice(0, 10) }))
+    candidateTransactionRows.map((t) => ({
+      id: t.id,
+      amount: t.amount,
+      dateIso: t.date.toISOString().slice(0, 10),
+      description: t.description,
+    })),
+    unmatchedPaymentRows.map((p) => ({
+      id: p.id,
+      amount: p.amount,
+      paidDateIso: p.paidDate.toISOString().slice(0, 10),
+      clientName: p.invoice.client.name,
+    })),
+    eligibleInvoiceRows.map((inv) => ({ id: inv.id, amount: inv.balance, clientName: inv.client.name }))
   );
 
   const paymentById = new Map(unmatchedPaymentRows.map((p) => [p.id, p]));
+  const invoiceById = new Map(eligibleInvoiceRows.map((inv) => [inv.id, inv]));
   const transactionById = new Map(candidateTransactionRows.map((t) => [t.id, t]));
 
-  const needsReview: { transaction: ReturnType<typeof mapBankTransaction>; candidates: ReturnType<typeof mapPayment>[] }[] = [];
-  const autoMatchable: { transactionId: string; paymentId: string }[] = [];
+  function mapCandidateTarget(candidate: MatchCandidate) {
+    return candidate.kind === "payment"
+      ? { kind: "payment" as const, payment: mapPayment(paymentById.get(candidate.id)!) }
+      : { kind: "invoice" as const, invoice: mapLinkableInvoice(invoiceById.get(candidate.id)!) };
+  }
+
+  const suggested: { transaction: ReturnType<typeof mapBankTransaction>; target: ReturnType<typeof mapCandidateTarget> }[] =
+    [];
+  const needsReview: {
+    transaction: ReturnType<typeof mapBankTransaction>;
+    candidates: ReturnType<typeof mapCandidateTarget>[];
+  }[] = [];
   const unmatchedBankIds = new Set(candidateTransactionRows.map((t) => t.id));
   const matchedPaymentIds = new Set<string>();
 
   for (const result of candidateResults) {
-    if (result.candidatePaymentIds.length === 1) {
-      autoMatchable.push({ transactionId: result.transactionId, paymentId: result.candidatePaymentIds[0] });
-      matchedPaymentIds.add(result.candidatePaymentIds[0]);
-      unmatchedBankIds.delete(result.transactionId);
-    } else if (result.candidatePaymentIds.length > 1) {
-      needsReview.push({
-        transaction: mapBankTransaction(transactionById.get(result.transactionId)!),
-        candidates: result.candidatePaymentIds.map((id) => mapPayment(paymentById.get(id)!)),
-      });
-      for (const id of result.candidatePaymentIds) matchedPaymentIds.add(id);
-      unmatchedBankIds.delete(result.transactionId);
+    const classification = classifyMatch(result.candidates);
+    if (classification.bucket === "none") continue;
+
+    unmatchedBankIds.delete(result.transactionId);
+    const transaction = mapBankTransaction(transactionById.get(result.transactionId)!);
+
+    if (classification.bucket === "auto") {
+      suggested.push({ transaction, target: mapCandidateTarget(classification.candidate) });
+      if (classification.candidate.kind === "payment") matchedPaymentIds.add(classification.candidate.id);
+    } else {
+      needsReview.push({ transaction, candidates: classification.candidates.map(mapCandidateTarget) });
+      for (const candidate of classification.candidates) {
+        if (candidate.kind === "payment") matchedPaymentIds.add(candidate.id);
+      }
     }
   }
 
   const unmatchedOurs = unmatchedPaymentRows.filter((p) => !matchedPaymentIds.has(p.id)).map(mapPayment);
   const unmatchedBank = candidateTransactionRows.filter((t) => unmatchedBankIds.has(t.id)).map(mapBankTransaction);
-
-  const suggested = autoMatchable.map(({ transactionId, paymentId }) => ({
-    payment: mapPayment(paymentById.get(paymentId)!),
-    transaction: mapBankTransaction(transactionById.get(transactionId)!),
-  }));
 
   return NextResponse.json({
     matched,
