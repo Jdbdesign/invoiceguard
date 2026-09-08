@@ -6,13 +6,30 @@ import { PageLoading } from "@/components/ui/Spinner";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useToast } from "@/context/ToastContext";
 import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
-import type { Payment, BankTransaction } from "@/lib/types";
+import type { Payment, BankTransaction, LinkableInvoice } from "@/lib/types";
 import { LinkManuallyModal, type LinkTarget, type ConfirmLink } from "./LinkManuallyModal";
+
+// A suggested/needs-review match target is either an existing Payment record
+// or an unpaid Invoice with no Payment yet (see linkInvoiceDirect) — the
+// latter is what auto-matching now offers directly, same as "Link manually".
+type MatchTarget =
+  | { kind: "payment"; payment: Payment }
+  | { kind: "invoice"; invoice: LinkableInvoice };
+
+function targetKey(target: MatchTarget): string {
+  return target.kind === "payment" ? `payment:${target.payment.id}` : `invoice:${target.invoice.id}`;
+}
+
+function targetToLink(target: MatchTarget, bankTransactionId: string): ConfirmLink {
+  return target.kind === "payment"
+    ? { paymentId: target.payment.id, bankTransactionId }
+    : { invoiceId: target.invoice.id, bankTransactionId };
+}
 
 interface MatchesResponse {
   matched: { payment: Payment; transaction: BankTransaction }[];
-  suggested: { payment: Payment; transaction: BankTransaction }[];
-  needsReview: { transaction: BankTransaction; candidates: Payment[] }[];
+  suggested: { transaction: BankTransaction; target: MatchTarget }[];
+  needsReview: { transaction: BankTransaction; candidates: MatchTarget[] }[];
   unmatchedOurs: Payment[];
   unmatchedBank: BankTransaction[];
 }
@@ -236,18 +253,25 @@ export function MatchBuckets({
                 </button>
               </li>
             ))}
-            {data.suggested.map(({ payment, transaction }) => (
+            {data.suggested.map(({ transaction, target }) => (
               <li
-                key={payment.id}
+                key={targetKey(target)}
                 className="flex flex-wrap items-center justify-between gap-3 bg-blue-50/60 px-5 py-4 text-sm"
               >
                 <span className="text-slate-700">
                   Suggested: {transaction.date} — {transaction.description} —{" "}
-                  <span className="font-semibold text-slate-900">{transaction.amount}</span>{" "}
-                  ↔ Invoice {payment.invoiceId}
+                  <span className="font-semibold text-slate-900">{transaction.amount}</span> ↔{" "}
+                  {target.kind === "payment" ? (
+                    <>Invoice {target.payment.invoiceId}</>
+                  ) : (
+                    <>
+                      Invoice {target.invoice.invoiceNumber} — {target.invoice.clientName}{" "}
+                      <span className="text-xs text-slate-400">(not yet recorded as paid)</span>
+                    </>
+                  )}
                 </span>
                 <button
-                  onClick={() => confirmMatch({ paymentId: payment.id, bankTransactionId: transaction.id })}
+                  onClick={() => confirmMatch(targetToLink(target, transaction.id))}
                   className={CONFIRM_BUTTON_CLASS}
                 >
                   Confirm
@@ -261,7 +285,7 @@ export function MatchBuckets({
       <Card>
         <CardHeader
           title="Needs review"
-          subtitle="More than one payment could match this transaction — pick the right one."
+          subtitle="More than one candidate could match this transaction, or the name is a plausible but inexact match — pick the right one."
         />
         {data.needsReview.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-500">Nothing needs review.</p>
@@ -276,11 +300,17 @@ export function MatchBuckets({
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {candidates.map((candidate) => (
                     <button
-                      key={candidate.id}
-                      onClick={() => confirmMatch({ paymentId: candidate.id, bankTransactionId: transaction.id })}
+                      key={targetKey(candidate)}
+                      onClick={() => confirmMatch(targetToLink(candidate, transaction.id))}
                       className="rounded border border-amber-400 px-2.5 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
                     >
-                      Invoice {candidate.invoiceId} ({candidate.paidDate})
+                      {candidate.kind === "payment" ? (
+                        <>
+                          Invoice {candidate.payment.invoiceId} ({candidate.payment.paidDate})
+                        </>
+                      ) : (
+                        <>Invoice {candidate.invoice.invoiceNumber} — {candidate.invoice.clientName} (unpaid)</>
+                      )}
                     </button>
                   ))}
                   <button
