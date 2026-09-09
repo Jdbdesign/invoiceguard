@@ -110,6 +110,10 @@ export function MatchBuckets({
       return;
     }
     setData(await response.json());
+    // A prior failed load (e.g. a transient DB blip) must not keep blanking
+    // the whole page once data is flowing again — this is the only place a
+    // success path runs, so it's the only place that needs to clear it.
+    setLoadError(null);
   }
 
   // Inlined as a .then()/.catch() chain rather than calling the `load`
@@ -133,6 +137,7 @@ export function MatchBuckets({
           return;
         }
         setData(await response.json());
+        setLoadError(null);
         if (isManualRefresh) showToast("Matches refreshed");
       })
       .catch(() => {
@@ -172,7 +177,7 @@ export function MatchBuckets({
         showToast(message);
         return false;
       }
-      load();
+      await load();
       return true;
     } catch {
       const message = "Password confirmation was cancelled — match not confirmed.";
@@ -194,7 +199,7 @@ export function MatchBuckets({
         showToast(message);
         return;
       }
-      load();
+      await load();
     } catch {
       const message = "Password confirmation was cancelled — match not undone.";
       setActionError(message);
@@ -215,7 +220,7 @@ export function MatchBuckets({
       showToast(message);
       return;
     }
-    load();
+    await load();
   }
 
   async function clearStatement() {
