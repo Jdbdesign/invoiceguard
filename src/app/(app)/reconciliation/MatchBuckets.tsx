@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/Spinner";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useToast } from "@/context/ToastContext";
 import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
-import type { Payment, BankTransaction, LinkableInvoice } from "@/lib/types";
+import { bankStatementUploadStatusLabel } from "@/lib/badgeHelpers";
+import { formatDateTime } from "@/lib/utils";
+import type { Payment, BankTransaction, LinkableInvoice, BankStatementUpload } from "@/lib/types";
 import { groupUnmatchedBankByStatement } from "@/lib/reconciliationStatements";
 import { LinkManuallyModal, type LinkTarget, type ConfirmLink } from "./LinkManuallyModal";
 import { Tabs, type TabItem } from "./Tabs";
@@ -45,7 +49,7 @@ interface MatchesResponse {
   unmatchedBank: BankTransaction[];
 }
 
-type TabId = "matched" | "review" | "unmatchedOurs" | "unmatchedBank";
+type TabId = "matched" | "review" | "unmatchedOurs" | "unmatchedBank" | "uploads";
 
 const CONFIRM_BUTTON_CLASS =
   "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none";
@@ -72,9 +76,14 @@ async function fetchWithPasswordRetry(url: string, init: RequestInit): Promise<R
 }
 
 export function MatchBuckets({
+  uploads,
   refreshToken = 0,
   onRefreshSettled,
 }: {
+  /** Server-fetched once by the page (last 5, newest first) and passed down
+   * unchanged — same data source and shape as the old sidebar UploadsList,
+   * just rendered as a tab now instead of a fixed side column. */
+  uploads: BankStatementUpload[];
   refreshToken?: number;
   /** Called once the refreshToken-triggered fetch below settles (success or
    * failure), so the "Refresh matches" button in the parent — which owns
@@ -262,6 +271,7 @@ export function MatchBuckets({
     { id: "review", label: "Needs review", count: data.needsReview.length },
     { id: "unmatchedOurs", label: "Unmatched — Ours", count: data.unmatchedOurs.length },
     { id: "unmatchedBank", label: "Unmatched — Bank", count: data.unmatchedBank.length },
+    { id: "uploads", label: "Recent uploads", count: uploads.length },
   ];
 
   return (
@@ -434,6 +444,49 @@ export function MatchBuckets({
                   />
                 ))}
               </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "uploads" && (
+          <>
+            <p className="border-b border-slate-100 px-5 py-3 text-xs text-slate-500">
+              Statements you&apos;ve uploaded, and any that still need review.
+            </p>
+            {uploads.length === 0 ? (
+              <p className="px-5 py-10 text-center text-sm text-slate-500">No statements uploaded yet.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {uploads.map((upload) => {
+                  const { label, variant } = bankStatementUploadStatusLabel(upload.status);
+                  return (
+                    <li
+                      key={upload.id}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"
+                    >
+                      <div>
+                        <p className="text-slate-700">
+                          {upload.fileName} — {formatDateTime(upload.createdAt)}
+                        </p>
+                        {upload.status === "failed" && upload.errorMessage && (
+                          <p className="mt-1 text-xs text-rose-500">{upload.errorMessage}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={variant}>{label}</Badge>
+                        {upload.status === "needs_review" && (
+                          <Link
+                            href={`/reconciliation/${upload.id}/review`}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                          >
+                            Review
+                          </Link>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </>
         )}

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { UploadStatementButton } from "./UploadStatementButton";
-import { UploadsList } from "./UploadsList";
 import { MatchBuckets } from "./MatchBuckets";
 import { Spinner } from "@/components/ui/Spinner";
 import type { BankStatementUpload } from "@/lib/types";
@@ -46,14 +45,7 @@ export function ReconciliationWorkspace({ uploads }: { uploads: BankStatementUpl
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <MatchBuckets refreshToken={refreshToken} onRefreshSettled={() => setRefreshing(false)} />
-        </div>
-        <div className="lg:col-span-2">
-          <UploadsList uploads={uploads} />
-        </div>
-      </div>
+      <MatchBuckets uploads={uploads} refreshToken={refreshToken} onRefreshSettled={() => setRefreshing(false)} />
     </div>
   );
 }
