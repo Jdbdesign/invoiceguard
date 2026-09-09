@@ -482,6 +482,15 @@ export function MatchBuckets({
                             Review
                           </Link>
                         )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setClearingStatement({ uploadId: upload.id, fileName: upload.fileName })
+                          }
+                          className="whitespace-nowrap text-xs font-medium text-rose-500 hover:text-rose-600"
+                        >
+                          Clear statement
+                        </button>
                       </div>
                     </li>
                   );
