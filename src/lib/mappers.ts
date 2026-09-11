@@ -246,12 +246,16 @@ type BankTransactionRow = {
   description: string;
   amount: number;
   ignoredAt: Date | null;
+  // Optional: only present when the query joined BankStatementUpload in.
+  // Absent entirely (not null) on call sites that don't need the filename.
+  upload?: { fileName: string };
 };
 
 export function mapBankTransaction(t: BankTransactionRow): BankTransaction {
   return {
     id: t.id,
     uploadId: t.uploadId,
+    uploadFileName: t.upload?.fileName,
     date: toIsoDate(t.date),
     description: t.description,
     amount: t.amount,

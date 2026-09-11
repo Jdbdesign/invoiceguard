@@ -134,6 +134,10 @@ export interface BankStatementUpload {
 export interface BankTransaction {
   id: string;
   uploadId: string;
+  /** The originating statement's fileName, when the query that produced this
+   * transaction joined it in — undefined only means "not fetched," never
+   * "no statement," since uploadId is a required FK. */
+  uploadFileName?: string;
   date: string;
   description: string;
   amount: number;

@@ -93,6 +93,31 @@ describe("mapBankTransaction", () => {
     });
     expect(result.ignoredAt).toBe("2026-03-05");
   });
+
+  it("leaves uploadFileName undefined when the row has no upload included", () => {
+    const result = mapBankTransaction({
+      id: "txn_3",
+      uploadId: "up_1",
+      date: new Date("2026-03-01T00:00:00.000Z"),
+      description: "Deposit",
+      amount: 500,
+      ignoredAt: null,
+    });
+    expect(result.uploadFileName).toBeUndefined();
+  });
+
+  it("surfaces uploadFileName when the row's upload relation was included", () => {
+    const result = mapBankTransaction({
+      id: "txn_4",
+      uploadId: "up_1",
+      date: new Date("2026-03-01T00:00:00.000Z"),
+      description: "Deposit",
+      amount: 500,
+      ignoredAt: null,
+      upload: { fileName: "march-statement.pdf" },
+    });
+    expect(result.uploadFileName).toBe("march-statement.pdf");
+  });
 });
 
 describe("mapLinkableInvoice", () => {
