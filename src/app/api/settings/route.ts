@@ -30,6 +30,7 @@ export async function PUT(request: Request) {
     passwordReconfirmMinutes?: number;
     sendReceiptImmediately?: boolean;
     activeReceiptTemplateId?: string;
+    bankStatementExtractionMethod?: string;
     businessName?: string | null;
     businessType?: string | null;
     logoUrl?: string | null;
@@ -102,6 +103,17 @@ export async function PUT(request: Request) {
     }
 
     data.activeReceiptTemplateId = activeReceiptTemplateId;
+  }
+
+  if (body.bankStatementExtractionMethod !== undefined) {
+    const bankStatementExtractionMethod = String(body.bankStatementExtractionMethod);
+    if (!["ai", "traditional"].includes(bankStatementExtractionMethod)) {
+      return NextResponse.json(
+        { error: "bankStatementExtractionMethod must be 'ai' or 'traditional'" },
+        { status: 400 }
+      );
+    }
+    data.bankStatementExtractionMethod = bankStatementExtractionMethod;
   }
 
   if (body.businessName !== undefined) {

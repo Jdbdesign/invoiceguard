@@ -13,6 +13,7 @@ export async function getOrCreateSettings(ownerId: string) {
       passwordReconfirmMinutes: PASSWORD_RECONFIRM_DEFAULT_MINUTES,
       sendReceiptImmediately: false,
       activeReceiptTemplateId: "default",
+      bankStatementExtractionMethod: "ai",
     },
   });
 }

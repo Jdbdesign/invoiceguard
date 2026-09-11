@@ -75,6 +75,7 @@ type SettingsRow = {
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
   activeReceiptTemplateId: string;
+  bankStatementExtractionMethod: string;
   businessName: string | null;
   businessType: string | null;
   logoUrl: string | null;
@@ -183,6 +184,7 @@ export function mapSettings(s: SettingsRow): AppSettings {
     passwordReconfirmMinutes: s.passwordReconfirmMinutes,
     sendReceiptImmediately: s.sendReceiptImmediately,
     activeReceiptTemplateId: s.activeReceiptTemplateId,
+    bankStatementExtractionMethod: s.bankStatementExtractionMethod,
     businessName: s.businessName,
     businessType: s.businessType,
     logoUrl: s.logoUrl,

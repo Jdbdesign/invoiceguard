@@ -95,6 +95,7 @@ export interface AppSettings extends ReminderSchedule {
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
   activeReceiptTemplateId: string;
+  bankStatementExtractionMethod: string;
   businessName: string | null;
   businessType: string | null;
   logoUrl: string | null;
