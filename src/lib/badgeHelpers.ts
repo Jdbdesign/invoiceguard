@@ -34,7 +34,13 @@ export function bankStatementUploadStatusLabel(status: BankStatementUploadStatus
   label: string;
   variant: BadgeVariant;
 } {
-  if (status === "needs_review") return { label: "Needs review", variant: "warning" };
+  // Deliberately not "Needs review" — that text is already the Reconciliation
+  // page's matching tab, which reviews ambiguous transaction-to-payment
+  // candidates, an unrelated concept from this status (the statement's
+  // parsed rows haven't been confirmed into transactions yet). Sharing the
+  // label made it look like a pending match was silently missing from that
+  // tab when actually no transaction existed yet for the matcher to see.
+  if (status === "needs_review") return { label: "Review rows", variant: "warning" };
   if (status === "failed") return { label: "Failed", variant: "danger" };
   if (status === "reviewed") return { label: "Reviewed", variant: "success" };
   return { label: "Processing", variant: "neutral" };
