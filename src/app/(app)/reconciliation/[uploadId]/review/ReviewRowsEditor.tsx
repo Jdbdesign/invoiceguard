@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/context/ToastContext";
 
 interface Row {
   date: string;
   description: string;
   amount: number;
+  needsReview?: boolean;
+  reviewReason?: string;
 }
 
 export function ReviewRowsEditor({
@@ -112,6 +115,12 @@ export function ReviewRowsEditor({
                         onChange={(e) => updateRow(index, "description", e.target.value)}
                         className="input"
                       />
+                      {row.needsReview && (
+                        <div className="mt-1.5 flex items-start gap-1.5">
+                          <Badge variant="warning">Needs review</Badge>
+                          <span className="text-xs text-amber-700">{row.reviewReason}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-5 py-2.5">
                       {/* Width goes on this wrapper, not the .input element
