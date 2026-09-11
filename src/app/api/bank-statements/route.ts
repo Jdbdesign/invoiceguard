@@ -5,12 +5,15 @@ import { auth } from "@/auth";
 import { mapBankStatementUpload } from "@/lib/mappers";
 import { isPdfBuffer, looksLikeScannedPdf } from "@/lib/pdfValidation";
 import { extractTransactionsFromStatementText, StatementExtractionError } from "@/lib/bankStatementExtraction";
+import { getOrCreateSettings } from "@/lib/settings";
+import { extractTraditional } from "@/lib/traditionalBankStatementExtraction";
 
 const MAX_SIZE_BYTES = 15 * 1024 * 1024;
 
 interface CreateBody {
   fileUrl?: unknown;
   fileName?: unknown;
+  forceMethod?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -22,6 +25,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "fileUrl and fileName are required" }, { status: 400 });
   }
   const { fileUrl, fileName } = body;
+
+  const settings = await getOrCreateSettings(session.user.id);
+  const method = body.forceMethod === "ai" ? "ai" : settings.bankStatementExtractionMethod;
 
   const upload = await prisma.bankStatementUpload.create({
     data: { ownerId: session.user.id, fileUrl, fileName, status: "parsing" },
@@ -123,14 +129,21 @@ export async function POST(request: Request) {
   }
 
   let rows;
-  try {
-    rows = await extractTransactionsFromStatementText(extractedText);
-  } catch (error) {
-    console.error("Bank statement transaction extraction failed", error);
-    if (error instanceof StatementExtractionError) {
-      return fail(error.message);
+  let lowConfidenceReasons: string[] = [];
+  if (method === "traditional") {
+    const result = extractTraditional(extractedText);
+    rows = result.rows;
+    lowConfidenceReasons = result.lowConfidenceReasons;
+  } else {
+    try {
+      rows = await extractTransactionsFromStatementText(extractedText);
+    } catch (error) {
+      console.error("Bank statement transaction extraction failed", error);
+      if (error instanceof StatementExtractionError) {
+        return fail(error.message);
+      }
+      return fail("Couldn't parse this statement — please try again.");
     }
-    return fail("Couldn't parse this statement — please try again.");
   }
 
   const reviewed = await prisma.bankStatementUpload.update({
@@ -142,5 +155,5 @@ export async function POST(request: Request) {
     data: { status: "needs_review", parsedRowsJson: rows as unknown as Prisma.InputJsonValue },
   });
 
-  return NextResponse.json({ upload: mapBankStatementUpload(reviewed), rows });
+  return NextResponse.json({ upload: mapBankStatementUpload(reviewed), rows, lowConfidenceReasons });
 }
