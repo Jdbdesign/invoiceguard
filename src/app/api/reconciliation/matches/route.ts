@@ -17,7 +17,10 @@ export async function GET() {
     await Promise.all([
       prisma.payment.findMany({
         where: { bankTransactionId: { not: null }, invoice: { client: { ownerId } } },
-        include: { invoice: { select: { invoiceNumber: true } }, bankTransaction: true },
+        include: {
+          invoice: { select: { invoiceNumber: true } },
+          bankTransaction: { include: { upload: { select: { fileName: true } } } },
+        },
       }),
       prisma.payment.findMany({
         where: { reconciledAt: null, invoice: { client: { ownerId } } },
@@ -40,6 +43,7 @@ export async function GET() {
       }),
       prisma.bankTransaction.findMany({
         where: { ownerId, ignoredAt: null, amount: { gt: 0 }, payment: null },
+        include: { upload: { select: { fileName: true } } },
       }),
     ]);
 
