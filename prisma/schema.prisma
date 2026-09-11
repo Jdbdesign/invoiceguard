@@ -143,6 +143,7 @@ model Settings {
   passwordReconfirmMinutes Int     @default(20)
   sendReceiptImmediately   Boolean   @default(false)
   activeReceiptTemplateId  String    @default("default")
+  bankStatementExtractionMethod String @default("ai")
   businessName             String?
   businessType             String?
   logoUrl                  String?

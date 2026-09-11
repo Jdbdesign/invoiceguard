@@ -23,6 +23,8 @@
     "db:resolve-prod-add-bank-reconciliation-migration": "tsx prisma/resolve-prod-add-bank-reconciliation-migration.ts",
     "db:apply-prod-normalize-invoice-item-fk-migration": "tsx prisma/apply-prod-normalize-invoice-item-fk-migration.ts",
     "db:resolve-prod-normalize-invoice-item-fk-migration": "tsx prisma/resolve-prod-normalize-invoice-item-fk-migration.ts",
+    "db:apply-prod-add-bank-statement-extraction-method-migration": "tsx prisma/apply-prod-add-bank-statement-extraction-method-migration.ts",
+    "db:resolve-prod-add-bank-statement-extraction-method-migration": "tsx prisma/resolve-prod-add-bank-statement-extraction-method-migration.ts",
     "db:check-prod-migrations": "tsx prisma/check-pending-migrations.ts",
     "db:inspect-business-profile-migration-state": "tsx prisma/inspect-business-profile-migration-state.ts",
     "db:resolve-prod-add-business-profile-migration": "tsx prisma/resolve-prod-add-business-profile-migration.ts",
