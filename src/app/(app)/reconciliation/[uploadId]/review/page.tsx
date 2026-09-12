@@ -18,7 +18,13 @@ export default async function ReviewPage({
   if (!upload) notFound();
 
   const initialRows = Array.isArray(upload.parsedRowsJson)
-    ? (upload.parsedRowsJson as { date: string; description: string; amount: number }[])
+    ? (upload.parsedRowsJson as {
+        date: string;
+        description: string;
+        amount: number;
+        needsReview?: boolean;
+        reviewReason?: string;
+      }[])
     : [];
 
   return (

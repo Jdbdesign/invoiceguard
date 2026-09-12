@@ -11,6 +11,8 @@ export interface ParsedStatementRow {
   date: string; // yyyy-mm-dd
   description: string;
   amount: number; // positive = credit/deposit, negative = debit
+  needsReview?: boolean; // traditional extractor only — never set by the AI path
+  reviewReason?: string;
 }
 
 export class StatementExtractionError extends Error {}

@@ -56,6 +56,8 @@ export default function SettingsPage() {
     updateSendReceiptImmediately,
     businessProfile,
     updateBusinessProfile,
+    bankStatementExtractionMethod,
+    updateBankStatementExtractionMethod,
     runDailyCheck,
   } = useAppData();
   const { showToast } = useToast();
@@ -69,6 +71,7 @@ export default function SettingsPage() {
   const [savingReconfirm, setSavingReconfirm] = useState(false);
 
   const [savingReceiptSetting, setSavingReceiptSetting] = useState(false);
+  const [savingExtractionMethod, setSavingExtractionMethod] = useState(false);
 
   const [businessDraft, setBusinessDraft] = useState(businessProfile);
   const [syncedBusinessProfile, setSyncedBusinessProfile] = useState(businessProfile);
@@ -159,6 +162,23 @@ export default function SettingsPage() {
       showToast("Failed to save — see console for details");
     } finally {
       setSavingReceiptSetting(false);
+    }
+  }
+
+  async function handleSetExtractionMethod(method: "ai" | "traditional") {
+    if (method === bankStatementExtractionMethod || savingExtractionMethod) return;
+    setSavingExtractionMethod(true);
+    try {
+      await updateBankStatementExtractionMethod(method);
+      showToast(
+        method === "traditional"
+          ? "Bank statements will now be parsed with the traditional (non-AI) method"
+          : "Bank statements will now be parsed with AI"
+      );
+    } catch {
+      showToast("Failed to save — see console for details");
+    } finally {
+      setSavingExtractionMethod(false);
     }
   }
 
@@ -375,6 +395,47 @@ export default function SettingsPage() {
               <p className="text-sm font-medium text-slate-900">Send receipt immediately</p>
               <p className="mt-0.5 text-xs text-slate-500">
                 The receipt emails the client automatically the moment an invoice is paid.
+              </p>
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Bank statement extraction"
+          subtitle="How uploaded bank statements are parsed into transactions"
+        />
+        <div className="px-5 py-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              onClick={() => handleSetExtractionMethod("ai")}
+              disabled={savingExtractionMethod}
+              className={`rounded-lg border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                bankStatementExtractionMethod === "ai"
+                  ? "border-blue-300 bg-blue-50"
+                  : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <p className="text-sm font-medium text-slate-900">AI-powered (recommended)</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Uses Claude to read and structure your statement. Handles unusual formats and
+                layout variations.
+              </p>
+            </button>
+            <button
+              onClick={() => handleSetExtractionMethod("traditional")}
+              disabled={savingExtractionMethod}
+              className={`rounded-lg border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                bankStatementExtractionMethod === "traditional"
+                  ? "border-blue-300 bg-blue-50"
+                  : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <p className="text-sm font-medium text-slate-900">Traditional (faster, no AI cost, less reliable)</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Uses pattern matching instead of AI. Faster and free, but may misread unusual
+                formats or ambiguous transactions.
               </p>
             </button>
           </div>

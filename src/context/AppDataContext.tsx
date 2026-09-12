@@ -75,6 +75,7 @@ interface AppDataContextValue {
   passwordReconfirmMinutes: number;
   sendReceiptImmediately: boolean;
   activeReceiptTemplateId: string;
+  bankStatementExtractionMethod: string;
   businessProfile: {
     businessName: string | null;
     businessType: string | null;
@@ -114,6 +115,7 @@ interface AppDataContextValue {
   updatePasswordReconfirmMinutes: (minutes: number) => Promise<void>;
   updateSendReceiptImmediately: (enabled: boolean) => Promise<void>;
   updateActiveReceiptTemplate: (templateId: string) => Promise<void>;
+  updateBankStatementExtractionMethod: (method: string) => Promise<void>;
   updateBusinessProfile: (partial: Partial<{
     businessName: string;
     businessType: string;
@@ -169,6 +171,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   );
   const [sendReceiptImmediately, setSendReceiptImmediately] = useState<boolean>(false);
   const [activeReceiptTemplateId, setActiveReceiptTemplateId] = useState<string>("default");
+  const [bankStatementExtractionMethod, setBankStatementExtractionMethod] = useState<string>("ai");
   // Grouped into one object (unlike the other settings fields, which are
   // separate useStates) because these six fields are always edited and
   // saved together as a single Settings-page section.
@@ -210,6 +213,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setPasswordReconfirmMinutes(settingsRes.passwordReconfirmMinutes);
         setSendReceiptImmediately(settingsRes.sendReceiptImmediately);
         setActiveReceiptTemplateId(settingsRes.activeReceiptTemplateId);
+        setBankStatementExtractionMethod(settingsRes.bankStatementExtractionMethod);
         setBusinessProfile({
           businessName: settingsRes.businessName,
           businessType: settingsRes.businessType,
@@ -670,6 +674,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setActiveReceiptTemplateId(updated.activeReceiptTemplateId);
   }, []);
 
+  const updateBankStatementExtractionMethod = useCallback(async (method: string) => {
+    const updated = await fetchJson<AppSettings>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ bankStatementExtractionMethod: method }),
+    });
+    setBankStatementExtractionMethod(updated.bankStatementExtractionMethod);
+  }, []);
+
   const updateBusinessProfile = useCallback(
     async (partial: Partial<{
       businessName: string;
@@ -717,6 +729,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       passwordReconfirmMinutes,
       sendReceiptImmediately,
       activeReceiptTemplateId,
+      bankStatementExtractionMethod,
       businessProfile,
       loading,
       addClient,
@@ -737,6 +750,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       updatePasswordReconfirmMinutes,
       updateSendReceiptImmediately,
       updateActiveReceiptTemplate,
+      updateBankStatementExtractionMethod,
       updateBusinessProfile,
       runDailyCheck,
     }),
@@ -749,6 +763,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       passwordReconfirmMinutes,
       sendReceiptImmediately,
       activeReceiptTemplateId,
+      bankStatementExtractionMethod,
       businessProfile,
       loading,
       addClient,
@@ -769,6 +784,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       updatePasswordReconfirmMinutes,
       updateSendReceiptImmediately,
       updateActiveReceiptTemplate,
+      updateBankStatementExtractionMethod,
       updateBusinessProfile,
       runDailyCheck,
     ]
