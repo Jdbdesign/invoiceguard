@@ -4,6 +4,7 @@ import { mapClient } from "@/lib/mappers";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/utils";
 import { parsePaginationParams } from "@/lib/pagination";
 import { getClientListItems } from "@/lib/clientListQuery";
+import { matchesClientSearch } from "@/lib/clientSearch";
 import { auth } from "@/auth";
 
 const VALID_CURRENCIES = new Set(CURRENCIES.map((c) => c.code));
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
     return NextResponse.json(clients.map(mapClient));
   }
 
-  const items = await getClientListItems(ownerId);
+  const searchParam = searchParams.get("q") ?? "";
+  const items = (await getClientListItems(ownerId)).filter((item) =>
+    matchesClientSearch(item, searchParam)
+  );
   const total = items.length;
   const start = (pagination.page - 1) * pagination.pageSize;
   const data = items.slice(start, start + pagination.pageSize);

@@ -16,6 +16,7 @@ import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { invoiceStatusLabel } from "@/lib/badgeHelpers";
 import { usePaginatedResource } from "@/lib/usePaginatedResource";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import type { Invoice, InvoiceStatus } from "@/lib/types";
 import {
   formatCurrency,
@@ -44,6 +45,8 @@ export default function InvoicesPage() {
   const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
@@ -58,7 +61,7 @@ export default function InvoicesPage() {
   // jump back to page 1 rather than showing a stale/out-of-range page. Done
   // as a render-time reset (see ClientFormModal for the same idiom) rather
   // than an effect, since setState-in-effect is disallowed here.
-  const filterKey = `${statusFilter}:${sortKey}`;
+  const filterKey = `${statusFilter}:${sortKey}:${debouncedSearch}`;
   const [lastFilterKey, setLastFilterKey] = useState(filterKey);
   if (filterKey !== lastFilterKey) {
     setLastFilterKey(filterKey);
@@ -71,6 +74,7 @@ export default function InvoicesPage() {
     sort: sortKey,
   });
   if (statusFilter !== "all") queryParams.set("status", statusFilter);
+  if (debouncedSearch.trim()) queryParams.set("q", debouncedSearch.trim());
 
   const {
     data: rows,
@@ -121,6 +125,14 @@ export default function InvoicesPage() {
         </div>
       </div>
 
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by invoice number, client name, or description"
+        className="input"
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5">
           {STATUS_FILTERS.map((f) => (
@@ -155,7 +167,9 @@ export default function InvoicesPage() {
       <Card className="overflow-hidden">
         {total === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-500">
-            No invoices match this filter.
+            {debouncedSearch.trim()
+              ? "No invoices match your search."
+              : "No invoices match this filter."}
           </p>
         ) : (
           <>
