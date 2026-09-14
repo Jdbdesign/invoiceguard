@@ -11,7 +11,7 @@ import { requestPasswordConfirmation } from "@/lib/passwordConfirmClient";
 import { bankStatementUploadStatusLabel } from "@/lib/badgeHelpers";
 import { formatDateTime } from "@/lib/utils";
 import type { Payment, BankTransaction, LinkableInvoice, BankStatementUpload } from "@/lib/types";
-import { groupUnmatchedBankByStatement } from "@/lib/reconciliationStatements";
+import { groupBankTransactionsByStatement } from "@/lib/reconciliationStatements";
 import { LinkManuallyModal, type LinkTarget, type ConfirmLink } from "./LinkManuallyModal";
 import { Tabs, type TabItem } from "./Tabs";
 import { UnmatchedBankStatementSection } from "./UnmatchedBankStatementSection";
@@ -47,9 +47,10 @@ interface MatchesResponse {
   needsReview: { transaction: BankTransaction; candidates: MatchTarget[] }[];
   unmatchedOurs: Payment[];
   unmatchedBank: BankTransaction[];
+  otherTransactions: BankTransaction[];
 }
 
-type TabId = "matched" | "review" | "unmatchedOurs" | "unmatchedBank" | "uploads";
+type TabId = "matched" | "review" | "unmatchedOurs" | "unmatchedBank" | "other" | "uploads";
 
 const CONFIRM_BUTTON_CLASS =
   "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none";
@@ -269,13 +270,15 @@ export function MatchBuckets({
   if (loadError) return <p className="text-sm text-rose-500">{loadError}</p>;
   if (!data) return <PageLoading label="Loading reconciliation data…" />;
 
-  const unmatchedBankGroups = groupUnmatchedBankByStatement(data.unmatchedBank);
+  const unmatchedBankGroups = groupBankTransactionsByStatement(data.unmatchedBank);
+  const otherTransactionGroups = groupBankTransactionsByStatement(data.otherTransactions);
 
   const tabs: TabItem[] = [
     { id: "matched", label: "Matched", count: data.matched.length + data.suggested.length },
     { id: "review", label: "Needs review", count: data.needsReview.length },
     { id: "unmatchedOurs", label: "Unmatched — Ours", count: data.unmatchedOurs.length },
     { id: "unmatchedBank", label: "Unmatched — Bank", count: data.unmatchedBank.length },
+    { id: "other", label: "Other transactions", count: data.otherTransactions.length },
     { id: "uploads", label: "Recent uploads", count: uploads.length },
   ];
 
@@ -442,6 +445,32 @@ export function MatchBuckets({
                     key={group.uploadId}
                     group={group}
                     onLinkManually={(transaction) => setLinkTarget({ searchFor: "payment", transaction })}
+                    onIgnore={ignoreTransaction}
+                    onClearStatement={() =>
+                      setClearingStatement({ uploadId: group.uploadId, fileName: group.fileName })
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "other" && (
+          <>
+            <p className="border-b border-slate-100 px-5 py-3 text-xs text-slate-500">
+              Money that left this account — not eligible for invoice-payment matching, shown here so nothing
+              from your statement is hidden.
+            </p>
+            {otherTransactionGroups.length === 0 ? (
+              <p className="px-5 py-10 text-center text-sm text-slate-500">No other transactions.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {otherTransactionGroups.map((group) => (
+                  <UnmatchedBankStatementSection
+                    key={group.uploadId}
+                    group={group}
+                    countLabel="transactions"
                     onIgnore={ignoreTransaction}
                     onClearStatement={() =>
                       setClearingStatement({ uploadId: group.uploadId, fileName: group.fileName })

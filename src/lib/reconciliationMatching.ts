@@ -40,6 +40,18 @@ const AMOUNT_EPSILON = 0.01;
 const TOLERANCE_DAYS = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// A bank transaction is only ever a candidate for invoice-payment
+// auto-matching if it's a credit (money coming in) — invoices track money
+// owed to us, so a debit (money going out) can never satisfy one. This is
+// also the exact boundary the Reconciliation page uses to split transactions
+// between the matching-eligible buckets (Matched/Needs review/Unmatched —
+// Bank) and the Other transactions bucket, so it lives here as the single
+// source of truth rather than as a literal filter duplicated in each place
+// that needs it.
+export function isMatchCandidateAmount(amount: number): boolean {
+  return amount > 0;
+}
+
 function daysBetween(a: string, b: string): number {
   const diff = new Date(`${a}T00:00:00.000Z`).getTime() - new Date(`${b}T00:00:00.000Z`).getTime();
   return Math.abs(diff) / MS_PER_DAY;
