@@ -86,10 +86,26 @@ Period: - 01 Jan 2026 31 Jan 2026 Wallet Account
     ]);
   });
 
-  it("flags zero extracted rows", () => {
-    const result = extractTraditional("no transactions here at all");
+  it("flags zero extracted rows on an OWealth-shaped statement with no parseable transactions", () => {
+    // OWealth-shaped (matches the Trans. Time + Value Date anchor format) but
+    // the one row present doesn't have valid money columns, so nothing parses.
+    const result = extractTraditional(
+      "Trans. Time Value Date Description Debit(₦) Credit(₦) Balance After(₦) Channel Transaction Reference"
+    );
 
     expect(result.rows).toEqual([]);
     expect(result.lowConfidenceReasons).toEqual(["No transactions could be parsed from this statement."]);
+  });
+
+  // Now that extractTraditional() detects format before parsing, plain text
+  // that doesn't match any known bank statement shape is reported as
+  // unrecognized rather than silently treated as an empty OWealth statement.
+  it("flags an unrecognized format for text that doesn't match any known statement shape", () => {
+    const result = extractTraditional("no transactions here at all");
+
+    expect(result.rows).toEqual([]);
+    expect(result.lowConfidenceReasons).toEqual([
+      "This statement's format wasn't recognized — traditional extraction doesn't support it yet.",
+    ]);
   });
 });
