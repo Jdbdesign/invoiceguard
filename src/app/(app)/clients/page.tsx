@@ -15,6 +15,7 @@ import { useAppData } from "@/context/AppDataContext";
 import { useToast } from "@/context/ToastContext";
 import { clientStatusLabel } from "@/lib/badgeHelpers";
 import { usePaginatedResource } from "@/lib/usePaginatedResource";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import type { ClientListItem } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -29,15 +30,33 @@ export default function ClientsPage() {
   const [deletingClient, setDeletingClient] = useState<ClientListItem | null>(null);
 
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [reloadToken, setReloadToken] = useState(0);
   const refetch = useCallback(() => setReloadToken((t) => t + 1), []);
+
+  // Changing the search invalidates the current page's meaning, so jump back
+  // to page 1 — same render-time-reset idiom the Invoices page uses for its
+  // filter/sort changes, rather than an effect (setState-in-effect is
+  // disallowed here).
+  const [lastSearch, setLastSearch] = useState(debouncedSearch);
+  if (debouncedSearch !== lastSearch) {
+    setLastSearch(debouncedSearch);
+    setPage(1);
+  }
+
+  const queryParams = new URLSearchParams({
+    page: String(page),
+    pageSize: String(PAGE_SIZE),
+  });
+  if (debouncedSearch.trim()) queryParams.set("q", debouncedSearch.trim());
 
   const {
     data: rows,
     total,
     loading,
   } = usePaginatedResource<ClientListItem>(
-    `/api/clients?page=${page}&pageSize=${PAGE_SIZE}`,
+    `/api/clients?${queryParams.toString()}`,
     reloadToken,
     () => showToast("Failed to load clients")
   );
@@ -80,10 +99,20 @@ export default function ClientsPage() {
         </div>
       </div>
 
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by name or email"
+        className="input"
+      />
+
       <Card className="overflow-hidden">
         {total === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-500">
-            No clients yet. Add your first client to get started.
+            {debouncedSearch.trim()
+              ? "No clients match your search."
+              : "No clients yet. Add your first client to get started."}
           </p>
         ) : (
           <>

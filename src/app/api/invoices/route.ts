@@ -4,6 +4,7 @@ import { mapInvoice } from "@/lib/mappers";
 import { fromIsoDate, toIsoDate } from "@/lib/dateSerialization";
 import { daysBetween, todayIso } from "@/lib/utils";
 import { parsePaginationParams } from "@/lib/pagination";
+import { invoiceSearchWhere } from "@/lib/invoiceSearch";
 import { INVOICE_ITEMS_INCLUDE, parseInvoiceItems, sumInvoiceItems } from "@/lib/invoiceItems";
 import { auth } from "@/auth";
 
@@ -28,9 +29,11 @@ export async function GET(request: Request) {
 
   const statusParam = searchParams.get("status");
   const sortParam = (searchParams.get("sort") as SortKey | null) ?? "dueDate";
+  const searchParam = searchParams.get("q") ?? "";
   const where = {
     client: { ownerId },
     ...(statusParam && statusParam !== "all" ? { status: statusParam } : {}),
+    ...(invoiceSearchWhere(searchParam) ?? {}),
   };
 
   if (sortParam === "daysOverdue") {
