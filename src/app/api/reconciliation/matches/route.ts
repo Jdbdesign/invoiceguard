@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { mapBankTransaction, mapLinkableInvoice, mapPayment } from "@/lib/mappers";
-import { classifyMatch, computeMatchCandidates, type MatchCandidate } from "@/lib/reconciliationMatching";
+import {
+  classifyMatch,
+  computeMatchCandidates,
+  isMatchCandidateAmount,
+  type MatchCandidate,
+} from "@/lib/reconciliationMatching";
 import { requireFreshPasswordConfirmation } from "@/lib/passwordConfirmation";
 import { BANK_TRANSACTION_CURRENCY, formatCurrency } from "@/lib/utils";
 
@@ -13,7 +18,7 @@ export async function GET() {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const ownerId = session.user.id;
 
-  const [confirmedPayments, unmatchedPaymentRows, eligibleInvoiceRows, candidateTransactionRows] =
+  const [confirmedPayments, unmatchedPaymentRows, eligibleInvoiceRows, bankTransactionRows] =
     await Promise.all([
       prisma.payment.findMany({
         where: { bankTransactionId: { not: null }, invoice: { client: { ownerId } } },
@@ -41,11 +46,21 @@ export async function GET() {
         },
         include: { client: true },
       }),
+      // Unfiltered by amount sign — credits (auto-matching candidates) and
+      // debits (Other transactions, never matchable against an invoice
+      // payment) are split below via isMatchCandidateAmount, the single
+      // source of truth for that boundary. Splitting in JS after one query
+      // rather than with two separate `where` clauses means the two buckets
+      // can't drift out of sync the way `gt: 0` / `lte: 0` duplicated across
+      // two queries could.
       prisma.bankTransaction.findMany({
-        where: { ownerId, ignoredAt: null, amount: { gt: 0 }, payment: null },
+        where: { ownerId, ignoredAt: null, payment: null },
         include: { upload: { select: { fileName: true } } },
       }),
     ]);
+
+  const candidateTransactionRows = bankTransactionRows.filter((t) => isMatchCandidateAmount(t.amount));
+  const otherTransactionRows = bankTransactionRows.filter((t) => !isMatchCandidateAmount(t.amount));
 
   const matched = confirmedPayments
     .filter((p) => p.bankTransaction)
@@ -109,6 +124,7 @@ export async function GET() {
 
   const unmatchedOurs = unmatchedPaymentRows.filter((p) => !matchedPaymentIds.has(p.id)).map(mapPayment);
   const unmatchedBank = candidateTransactionRows.filter((t) => unmatchedBankIds.has(t.id)).map(mapBankTransaction);
+  const otherTransactions = otherTransactionRows.map(mapBankTransaction);
 
   return NextResponse.json({
     matched,
@@ -116,6 +132,7 @@ export async function GET() {
     needsReview,
     unmatchedOurs,
     unmatchedBank,
+    otherTransactions,
   });
 }
 

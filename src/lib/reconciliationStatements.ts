@@ -1,6 +1,6 @@
 import type { BankTransaction } from "./types";
 
-export interface UnmatchedBankStatementGroup {
+export interface BankStatementTransactionGroup {
   uploadId: string;
   /** Falls back to a placeholder only if a transaction's uploadFileName is
    * missing — shouldn't happen given uploadId is a required FK, but the
@@ -8,7 +8,7 @@ export interface UnmatchedBankStatementGroup {
   fileName: string;
   count: number;
   /** yyyy-mm-dd, inclusive — the earliest and latest transaction dates seen
-   * for this statement's still-unmatched transactions specifically, not the
+   * for this statement's transactions in this group specifically, not the
    * statement's own (unrecorded) coverage period. */
   minDate: string;
   maxDate: string;
@@ -19,11 +19,12 @@ export interface UnmatchedBankStatementGroup {
 // share a filename) so a re-uploaded statement with the same name still gets
 // its own section. Groups are ordered by most-recent transaction activity
 // first, since that's the statement a user re-checking reconciliation is
-// most likely to care about.
-export function groupUnmatchedBankByStatement(
+// most likely to care about. Used for both the Unmatched — Bank bucket
+// (credits) and the Other transactions bucket (debits) — sign-agnostic.
+export function groupBankTransactionsByStatement(
   transactions: BankTransaction[]
-): UnmatchedBankStatementGroup[] {
-  const groups = new Map<string, UnmatchedBankStatementGroup>();
+): BankStatementTransactionGroup[] {
+  const groups = new Map<string, BankStatementTransactionGroup>();
 
   for (const transaction of transactions) {
     let group = groups.get(transaction.uploadId);

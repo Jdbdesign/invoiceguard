@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyMatch, computeMatchCandidates, nameMatchTier } from "./reconciliationMatching";
+import { classifyMatch, computeMatchCandidates, isMatchCandidateAmount, nameMatchTier } from "./reconciliationMatching";
 
 describe("nameMatchTier", () => {
   it("tiers an exact same-name match as exact", () => {
@@ -215,5 +215,24 @@ describe("classifyMatch", () => {
     const a = { kind: "payment" as const, id: "pay_1", tier: "exact" as const };
     const b = { kind: "invoice" as const, id: "inv_1", tier: "exact" as const };
     expect(classifyMatch([a, b])).toEqual({ bucket: "review", candidates: [a, b] });
+  });
+});
+
+describe("isMatchCandidateAmount", () => {
+  // This is the single source of truth for the boundary between the
+  // Reconciliation page's matching-eligible buckets (credits) and the Other
+  // transactions bucket (debits) — GET /api/reconciliation/matches partitions
+  // one unfiltered query with this predicate instead of two separate `where`
+  // clauses, specifically so the two buckets can't drift out of sync.
+  it("treats a positive amount (credit) as a match candidate", () => {
+    expect(isMatchCandidateAmount(50000)).toBe(true);
+  });
+
+  it("treats a negative amount (debit) as not a match candidate", () => {
+    expect(isMatchCandidateAmount(-26.88)).toBe(false);
+  });
+
+  it("treats a zero amount as not a match candidate", () => {
+    expect(isMatchCandidateAmount(0)).toBe(false);
   });
 });

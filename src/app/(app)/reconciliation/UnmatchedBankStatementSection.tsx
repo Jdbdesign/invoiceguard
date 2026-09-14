@@ -2,22 +2,29 @@
 
 import { useState } from "react";
 import { formatDate } from "@/lib/utils";
-import type { UnmatchedBankStatementGroup } from "@/lib/reconciliationStatements";
+import type { BankStatementTransactionGroup } from "@/lib/reconciliationStatements";
 import type { BankTransaction } from "@/lib/types";
 
 // Collapsible per-statement group, same useState-toggle shape as
 // InvoiceItemsDisclosure — defaults collapsed so a page with many statements
-// doesn't dump every transaction on load.
+// doesn't dump every transaction on load. Shared by the Unmatched — Bank tab
+// (credits, onLinkManually provided) and the Other transactions tab (debits,
+// onLinkManually omitted — an outflow can never match an invoice payment, so
+// offering that action there would be misleading).
 export function UnmatchedBankStatementSection({
   group,
   onLinkManually,
   onIgnore,
   onClearStatement,
+  countLabel = "unmatched",
 }: {
-  group: UnmatchedBankStatementGroup;
-  onLinkManually: (transaction: BankTransaction) => void;
+  group: BankStatementTransactionGroup;
+  onLinkManually?: (transaction: BankTransaction) => void;
   onIgnore: (transactionId: string) => void;
   onClearStatement: () => void;
+  /** Word after the count in the group header, e.g. "3 unmatched" — override
+   * for buckets (like Other transactions) where "unmatched" doesn't apply. */
+  countLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const dateRangeLabel =
@@ -46,7 +53,7 @@ export function UnmatchedBankStatementSection({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-slate-700">{group.fileName}</p>
             <p className="text-xs text-slate-500">
-              {dateRangeLabel} · {group.count} unmatched
+              {dateRangeLabel} · {group.count} {countLabel}
             </p>
           </div>
         </button>
@@ -70,12 +77,14 @@ export function UnmatchedBankStatementSection({
                 <span className="font-semibold text-slate-900">{transaction.amount}</span>
               </span>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => onLinkManually(transaction)}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
-                >
-                  Link manually
-                </button>
+                {onLinkManually && (
+                  <button
+                    onClick={() => onLinkManually(transaction)}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    Link manually
+                  </button>
+                )}
                 <button
                   onClick={() => onIgnore(transaction.id)}
                   className="text-xs font-medium text-slate-500 hover:text-slate-700"
