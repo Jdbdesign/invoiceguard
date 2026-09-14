@@ -207,7 +207,7 @@ export function InvoiceFormModal({
                     value={item.description}
                     disabled={amountLocked}
                     onChange={(e) => updateItemRow(index, { description: e.target.value })}
-                    placeholder="e.g. School fee"
+                    placeholder="e.g. Consulting services"
                     className={`input ${amountLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
                   />
                 </div>
